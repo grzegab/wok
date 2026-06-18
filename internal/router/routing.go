@@ -2,15 +2,12 @@ package router
 
 import (
 	"fmt"
-	"io/fs"
 	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/grzegab/wok/internal/repository"
-	"github.com/grzegab/wok/internal/templates"
-
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/grzegab/wok/internal/repository"
 )
 
 type Router struct {
@@ -62,14 +59,12 @@ func New(ipRepo repository.IpRepository) *Router {
 	}
 
 	// Assets
-	subFS, _ := fs.Sub(templates.FSa, "assets")
-	fsa := http.FileServer(http.FS(subFS))
-	r.Handle("/assets/grzegab.jpg", http.StripPrefix("/assets/", fsa))
-	r.Handle("/assets/favicon.ico", http.StripPrefix("/assets/", fsa))
 
 	// Proper paths
 	r.Get("/", landing)
-	r.Get("/robots.txt", robotsTxt)
+	//r.Get("/l0g1n", landing)
+	//r.Get("list", application_list)
+	//r.Get("application/{id}", application_details)
 
 	// Ban most important GET
 	var reason string
