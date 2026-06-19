@@ -1,0 +1,64 @@
+orchestrator:
+  started_phase: phase-1
+  completed_phases: []
+  failed_phases: []
+  auto_fix_attempts: {}
+  options:
+    spec_audit_enabled: true
+    skip_test_suite: true
+    e2e_enabled: false
+    user_docs_enabled: false
+    code_review_enabled: true
+    pragmatic_review_enabled: true
+    reality_check_enabled: false
+    production_check_enabled: false
+  created: "2026-06-18T17:02:22Z"
+  updated: "2026-06-18T17:02:22Z"
+  task_path: .maister/tasks/development/2026-06-18-login-middleware
+  task_ids: {}
+
+task:
+  title: "Add login authentication middleware"
+  description: >
+    Dodaj logowanie do aplikacji: middleware sprawdzające czy użytkownik jest
+    zalogowany przed dostępem do każdej strony (jeśli nie, przekierowanie do
+    strony logowania). Strona logowania powinna być pod adresem /l0g1n.
+    Dodaj testy do stworzonych plików.
+  status: completed
+  tags: [auth, middleware, security]
+  priority: high
+
+verification_context:
+  last_status: passed_with_issues
+  issues_found:
+    - "login.gohtml bypasses base.gohtml (Warning/High)"
+    - "router.New() double config.Load() (Warning/Medium)"
+    - "sessionTTL duplicated across packages (Info/Low)"
+    - "/logout exemption path-only not method-scoped (Info)"
+  fixes_applied: []
+  decisions_made:
+    - "User chose to proceed as-is without fixing any flagged warnings; both real issues documented as known non-blocking follow-ups."
+  reverify_count: 0
+
+task_context:
+  risk_level: medium
+  clarifications_resolved: true
+  scope_expanded: null
+  architecture_decision: null
+  task_characteristics:
+    has_reproducible_defect: false
+    modifies_existing_code: true
+    creates_new_entities: true
+    involves_data_operations: true
+    ui_heavy: true
+  project_doc_paths:
+    - .maister/docs/project/vision.md
+    - .maister/docs/project/tech-stack.md
+  phase_summaries:
+    codebase_analysis:
+      summary: "Mirrors existing IpRepository/CheckIP/landing patterns for SessionRepository/auth middleware/login handler; /l0g1n path confirmed deliberate."
+      key_files: [internal/repository/ip_repository.go, internal/router/check_middleware.go, internal/router/routing.go, cmd/web/main.go, internal/config/loader.go, internal/templates/embed.go]
+    gap_analysis:
+      summary: "Greenfield auth capability, medium risk. bcrypt is a new dependency (golang.org/x/crypto). partials/ dir is empty — no UI to mirror. Pre-existing latent bug: base.gohtml references undefined 'header' template. Logout/Revoke and session TTL value need explicit decisions."
+      integration_points: [internal/router/routing.go, cmd/web/main.go, internal/config/loader.go, .env.default]
+
