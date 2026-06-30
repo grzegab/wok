@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 	"os"
@@ -11,10 +12,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/getsentry/sentry-go"
 	"github.com/grzegab/wok/internal/config"
 	"github.com/grzegab/wok/internal/redis"
 	"github.com/grzegab/wok/internal/repository"
 	"github.com/grzegab/wok/internal/router"
+	"github.com/grzegab/wok/internal/templates"
 )
 
 func main() {
@@ -24,7 +27,7 @@ func main() {
 	// load config
 	conf := config.Load()
 
-	var ipRepo repository.IpRepository
+	var ipRepo router.IpRepository
 	rdb, err := redis.NewClient(conf.RedisAddr)
 	if err != nil {
 		log.Printf("Warning: could not connect to redis: %v\n", err)
@@ -37,6 +40,23 @@ func main() {
 		ipRepo = repository.NewRedisIpRepository(rdb)
 	}
 
+	var sessionRepo router.SessionRepository
+	if rdb != nil {
+		sessionRepo = repository.NewRedisSessionRepository(rdb, conf.SessionTTL)
+	} else {
+		log.Printf("Warning: could not connect to redis: %v\n", err)
+		fmt.Println("Warning: using in memory db")
+		sessionRepo = repository.NewInMemorySessionRepository(conf.SessionTTL)
+	}
+
+	tmpl, err := template.ParseFS(templates.FS, "base.gohtml", "partials/*.gohtml")
+	if err != nil {
+		log.Fatalf("could not parse templates: %v", err)
+	}
+
+	authHandler := router.NewAuthHandler(sessionRepo, conf, tmpl)
+	pagesHandler := router.NewPagesHandler(tmpl)
+
 	// Init sentry (for logging errors on prod)
 	err = sentry.Init(sentry.ClientOptions{
 		Dsn: conf.SentryDsn,
@@ -45,15 +65,14 @@ func main() {
 		log.Printf("sentry.Init: %s\n", err)
 	}
 
-	// start web server (simple)
-	r := router.New(ipRepo)
+	r := router.New(ipRepo, sessionRepo, authHandler, pagesHandler)
 	server := &http.Server{
 		Addr:              conf.WebAddr,
 		Handler:           r.Mux(),
-		ReadTimeout:       10 * time.Second,
-		ReadHeaderTimeout: 10 * time.Second,
-		WriteTimeout:      10 * time.Second,
-		IdleTimeout:       10 * time.Second,
+		ReadTimeout:       conf.RequestTimeout,
+		ReadHeaderTimeout: conf.RequestTimeout,
+		WriteTimeout:      conf.RequestTimeout,
+		IdleTimeout:       conf.RequestTimeout,
 	}
 
 	go func() {
