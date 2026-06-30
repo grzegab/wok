@@ -1,7 +1,8 @@
 {{ define "base" }}
 <!DOCTYPE html>
 <html lang="en">
-
+{{ template "head" . }}
+<body>
 {{ template "header" . }}
 
 {{ block "content" . }}{{ end }}

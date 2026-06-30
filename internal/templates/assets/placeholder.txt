@@ -1,0 +1,2 @@
+Placeholder file so the //go:embed assets/* directive in embed.go has at least one match.
+Replace with real static assets (CSS, JS, images) as the app grows.

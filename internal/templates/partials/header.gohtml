@@ -1,0 +1,16 @@
+{{ define "header" }}
+<head>
+    <meta charset="utf-8">
+    <title>WOK</title>
+</head>
+<body>
+<header>
+    <span>WOK</span>
+    {{ if .LoggedIn }}
+    <form method="POST" action="/logout">
+        <button type="submit">Logout</button>
+    </form>
+    {{ end }}
+</header>
+{{ end }}
+
