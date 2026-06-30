@@ -13,7 +13,7 @@ func NewInMemoryIpRepository() *InMemoryIpRepository {
 	return &InMemoryIpRepository{ips: make(map[string]string)}
 }
 
-func (r *InMemoryIpRepository) Add(ctx context.Context, ip string, reason string) error {
+func (r *InMemoryIpRepository) Add(_ context.Context, ip string, reason string) error {
 	r.ips[ip] = reason
 	return nil
 }
