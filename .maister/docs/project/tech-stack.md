@@ -28,6 +28,11 @@ None configured yet — no test files present in the repository.
 - **ORM/Client**: `go-redis/redis/v9`
 - **Rationale**: Used for IP-ban storage; an in-memory fallback implementation (`InMemoryIpRepository`) is used when Redis is unavailable, via a shared `IpRepository` interface
 
+### PostgreSQL (17, pgx/v5 client)
+- **Type**: Relational, fixed/stable schema
+- **ORM/Client**: `jackc/pgx/v5` (`pgxpool`), queries generated via `sqlc`
+- **Rationale**: Stores structured application-tracking records (job applications: company, dates, prices, status, free-text notes) with a schema that changes rarely. `sqlc` compiles hand-written SQL in `internal/database/queries/*.sql` against `internal/database/schema.sql` into type-safe Go (`internal/database/generated/`) — no ORM, no runtime reflection, no migration framework needed since the schema file doubles as the Postgres container's init script (`docker-entrypoint-initdb.d`)
+
 ## Build Tools & Package Management
 - Go Modules (go.mod / go.sum)
 - Build command: `CGO_ENABLED=0 GOOS=linux go build -o main ./cmd/web`
@@ -36,7 +41,7 @@ None configured yet — no test files present in the repository.
 
 ### Containerization
 - Docker: multi-stage build, Alpine base image, non-root `appuser`, static binary
-- Docker Compose: runs a local Redis service (`redis:latest`, port 6379)
+- Docker Compose: runs local Redis (`redis:latest`, port 6379) and PostgreSQL (`postgres:17-alpine`, port 5432, named volume `postgres_data`) services
 
 ### CI/CD
 None configured yet.
@@ -55,8 +60,13 @@ N/A (Go is statically typed by default).
 ## Key Dependencies
 - `github.com/go-chi/chi/v5` v5.3.0 — HTTP routing/middleware
 - `github.com/redis/go-redis/v9` v9.20.1 — Redis client
+- `github.com/jackc/pgx/v5` v5.10.0 — PostgreSQL driver/pool (`pgxpool`)
+- `sqlc` (CLI, not a Go module dependency) — generates type-safe Go from SQL; config in `sqlc.yaml`
 - `github.com/joho/godotenv` v1.5.1 — `.env` config loading
 - Sentry SDK — imported in `cmd/web/main.go` for error tracking (not yet declared in go.mod — known gap)
+
+## Build/Dev Automation
+- `Makefile` at project root: `make run` (starts Redis + Postgres via Compose, then runs the Go app locally), `make up`/`make down` (Compose lifecycle only), `make sqlc-generate` (regenerate `internal/database/generated`), `make build` (Docker image build)
 
 ## Version Management
 Go Modules with semantic versioning in `go.mod`/`go.sum`.

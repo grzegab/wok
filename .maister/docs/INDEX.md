@@ -20,7 +20,7 @@ Located in `.maister/docs/project/`
 WOK's pitch, problem statement, target user (single personal user), key features (company/alias tracking, CV versioning, status tracking with auto-expiry, blacklist marking, IP-based access blocking), success criteria, and differentiators.
 
 ### Tech Stack (`project/tech-stack.md`)
-Go 1.26 stdlib-first backend, server-side rendered HTML via `html/template` (no frontend framework), Chi v5 router, Redis-backed IP-ban storage with in-memory fallback, Docker/Docker Compose setup, and key dependencies (chi, go-redis, godotenv, Sentry).
+Go 1.26 stdlib-first backend, server-side rendered HTML via `html/template` (no frontend framework), Chi v5 router, Redis-backed IP-ban storage with in-memory fallback, PostgreSQL for fixed-schema structured records via `sqlc`-generated type-safe queries, Docker/Docker Compose setup, `Makefile` for local dev automation, and key dependencies (chi, go-redis, pgx, sqlc, godotenv, Sentry).
 
 ### Roadmap (`project/roadmap.md`)
 *Skipped during setup.* Not generated — the user chose not to include a roadmap. Add it later via the docs-manager skill if needed.

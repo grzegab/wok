@@ -36,5 +36,8 @@ Both Docker stages run `apk update && apk upgrade --no-cache` before proceeding,
 ### `.env.default` as Documented Template (confidence 75, source: config)
 A `.env.default` file documents required environment variables with placeholder values, serving as the canonical config reference; the real `.env` holds actual secrets and is gitignored.
 
-### Redis as Sole External Service Dependency (confidence 75, source: config)
-`docker-compose.yaml` defines only a Redis service, indicating Redis is the project's primary external infra dependency for local development.
+### External Service Dependencies via Docker Compose (confidence 75, source: config)
+`docker-compose.yaml` defines the project's external infra dependencies for local development: Redis (key-value store, IP-ban/session storage) and PostgreSQL (relational store for fixed-schema structured records, accessed via `sqlc`-generated code). Both are provisioned as Compose services; the app degrades gracefully (in-memory fallback) if Redis is unreachable, and logs a warning if Postgres is unreachable.
+
+### SQL Schema Doubles as Postgres Init Script (confidence 75, source: config)
+`internal/database/schema.sql` is both the source `sqlc` reads to generate Go types/queries and the file mounted into the Postgres container's `docker-entrypoint-initdb.d`, so there is a single source of truth for schema and no separate migration tool. This fits schemas that are expected to change rarely (fields added/removed occasionally, not restructured).

@@ -14,6 +14,7 @@ import (
 
 	"github.com/getsentry/sentry-go"
 	"github.com/grzegab/wok/internal/config"
+	"github.com/grzegab/wok/internal/postgres"
 	"github.com/grzegab/wok/internal/redis"
 	"github.com/grzegab/wok/internal/repository"
 	"github.com/grzegab/wok/internal/router"
@@ -47,6 +48,14 @@ func main() {
 		log.Printf("Warning: could not connect to redis: %v\n", err)
 		fmt.Println("Warning: using in memory db")
 		sessionRepo = repository.NewInMemorySessionRepository(conf.SessionTTL)
+	}
+
+	pgPool, err := postgres.NewClient(conf.PostgresDSN)
+	if err != nil {
+		log.Printf("Warning: could not connect to postgres: %v\n", err)
+	} else {
+		log.Println("Connected to Postgres")
+		defer pgPool.Close()
 	}
 
 	tmpl, err := template.ParseFS(templates.FS, "base.gohtml", "partials/*.gohtml")

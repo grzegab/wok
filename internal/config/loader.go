@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"time"
@@ -13,6 +14,7 @@ const RequestTimeout = 10 * time.Second
 
 type Config struct {
 	RedisAddr      string
+	PostgresDSN    string
 	WebAddr        string
 	SentryDsn      string
 	LoginUser      string
@@ -38,6 +40,7 @@ func Load() *Config {
 
 	return &Config{
 		RedisAddr:      redisAddr,
+		PostgresDSN:    postgresDSN(),
 		WebAddr:        webAddr,
 		SentryDsn:      sentryDsn,
 		LoginUser:      loginUser,
@@ -45,4 +48,15 @@ func Load() *Config {
 		SessionTTL:     DefaultSessionTTL,
 		RequestTimeout: RequestTimeout,
 	}
+}
+
+func postgresDSN() string {
+	return fmt.Sprintf(
+		"postgres://%s:%s@%s:%s/%s?sslmode=disable",
+		os.Getenv("POSTGRES_USER"),
+		os.Getenv("POSTGRES_PASSWORD"),
+		os.Getenv("POSTGRES_HOST"),
+		os.Getenv("POSTGRES_PORT"),
+		os.Getenv("POSTGRES_DB"),
+	)
 }

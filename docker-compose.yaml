@@ -4,3 +4,24 @@ services:
     ports:
       - "6379:6379"
     restart: always
+
+  postgres:
+    image: postgres:17-alpine
+    ports:
+      - "5432:5432"
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-wok}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wok}
+      POSTGRES_DB: ${POSTGRES_DB:-wok}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./internal/database/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-wok}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
