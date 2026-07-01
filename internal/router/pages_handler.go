@@ -2,32 +2,23 @@ package router
 
 import (
 	"html/template"
+	"log"
 	"net/http"
-
-	"github.com/grzegab/wok/internal/templates"
 )
 
-func landing(w http.ResponseWriter, _ *http.Request) {
-	tmpl, err := template.ParseFS(templates.FS, "base.gohtml", "partials/*.gohtml")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-
-	err = tmpl.ExecuteTemplate(w, "base", nil)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
+type PagesHandler struct {
+	tmpl *template.Template
 }
 
-func robotsTxt(w http.ResponseWriter, _ *http.Request) {
-	data, err := templates.FS.ReadFile("other/robots.txt")
-	if err != nil {
-		http.Error(w, "Robots.txt not found", http.StatusNotFound)
-		return
+func NewPagesHandler(tmpl *template.Template) *PagesHandler {
+	return &PagesHandler{tmpl: tmpl}
+}
+
+func (h *PagesHandler) landing(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	if err := h.tmpl.ExecuteTemplate(w, "notfound", nil); err != nil {
+		log.Printf("could not execute notfound template: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
 	}
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.Write(data)
 }
