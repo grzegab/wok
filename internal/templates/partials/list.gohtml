@@ -1,0 +1,42 @@
+{{ define "list" }}
+
+{{ template "header" . }}
+
+<h1>Applications</h1>
+
+<p>
+    <a href="/create">Add</a>
+</p>
+
+<table>
+    <thead>
+    <tr>
+        <th>Company</th>
+        <th>Application date</th>
+        <th>Status</th>
+        <th>Had chat</th>
+        <th>Starting price</th>
+        <th>Ending price</th>
+        <th>My price</th>
+    </tr>
+    </thead>
+    <tbody>
+    {{ range .Applications }}
+    <tr>
+        <td>{{ .CompanyName }}</td>
+        <td>{{ .ApplicationDate }}</td>
+        <td>{{ .Status }}</td>
+        <td>{{ .HadChat }}</td>
+        <td>{{ .StartingPrice }}</td>
+        <td>{{ .EndingPrice }}</td>
+        <td>{{ .MyPrice }}</td>
+    </tr>
+    {{ else }}
+    <tr>
+        <td colspan="7">No applications yet.</td>
+    </tr>
+    {{ end }}
+    </tbody>
+</table>
+
+{{ end }}

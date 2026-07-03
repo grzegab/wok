@@ -83,7 +83,7 @@ func New(ipRepo IpRepository, sessionRepo SessionRepository, authHdlr *AuthHandl
 	r.Group(func(pr chi.Router) {
 		pr.Use(RequireLogin(sessionRepo))
 		pr.Get("/", pagesHdlr.landing)
-		//pr.Get("list", application_list)
+		pr.Get("/list", pagesHdlr.list)
 		//pr.Get("application/{id}", application_details)
 	})
 

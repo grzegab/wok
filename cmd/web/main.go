@@ -14,6 +14,7 @@ import (
 
 	"github.com/getsentry/sentry-go"
 	"github.com/grzegab/wok/internal/config"
+	database "github.com/grzegab/wok/internal/database/generated"
 	"github.com/grzegab/wok/internal/postgres"
 	"github.com/grzegab/wok/internal/redis"
 	"github.com/grzegab/wok/internal/repository"
@@ -63,8 +64,10 @@ func main() {
 		log.Fatalf("could not parse templates: %v", err)
 	}
 
+	db := database.New(pgPool)
+
 	authHandler := router.NewAuthHandler(sessionRepo, conf, tmpl)
-	pagesHandler := router.NewPagesHandler(tmpl)
+	pagesHandler := router.NewPagesHandler(tmpl, db)
 
 	// Init sentry (for logging errors on prod)
 	err = sentry.Init(sentry.ClientOptions{

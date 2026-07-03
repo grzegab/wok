@@ -1,6 +1,7 @@
 package router
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -8,9 +9,16 @@ import (
 	"testing"
 
 	"github.com/grzegab/wok/internal/config"
+	database "github.com/grzegab/wok/internal/database/generated"
 	"github.com/grzegab/wok/internal/repository"
 	"golang.org/x/crypto/bcrypt"
 )
+
+type fakeApplicationLister struct{}
+
+func (f *fakeApplicationLister) ListApplications(ctx context.Context) ([]database.Application, error) {
+	return nil, nil
+}
 
 // TestRouting_LoginAndLogoutNotInterceptedByCatchAllBan guards the Chi routing
 // precedence: explicit POST /l0g1n and POST /logout registrations must resolve
@@ -20,7 +28,7 @@ func TestRouting_LoginAndLogoutNotInterceptedByCatchAllBan(t *testing.T) {
 	ipRepo := repository.NewInMemoryIpRepository()
 	sessionRepo := &fakeSessionRepository{valid: false}
 	authHdlr := NewAuthHandler(sessionRepo, &config.Config{}, testTemplate(t))
-	pagesHdlr := NewPagesHandler(testTemplate(t))
+	pagesHdlr := NewPagesHandler(testTemplate(t), &fakeApplicationLister{})
 
 	r := New(ipRepo, sessionRepo, authHdlr, pagesHdlr)
 
@@ -60,7 +68,7 @@ func TestRouting_FullLoginLifecycle(t *testing.T) {
 	sessionRepo := repository.NewInMemorySessionRepository(config.DefaultSessionTTL)
 	conf := &config.Config{LoginUser: "alice", LoginPassHash: string(hash)}
 	authHdlr := NewAuthHandler(sessionRepo, conf, testTemplate(t))
-	pagesHdlr := NewPagesHandler(testTemplate(t))
+	pagesHdlr := NewPagesHandler(testTemplate(t), &fakeApplicationLister{})
 	r := New(ipRepo, sessionRepo, authHdlr, pagesHdlr)
 
 	// Step 1: unauthenticated GET / returns 404 (login page is not revealed).
