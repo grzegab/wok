@@ -124,7 +124,7 @@ func (h *AuthHandler) logout(w http.ResponseWriter, r *http.Request) {
 		MaxAge:   -1,
 	})
 
-	http.Redirect(w, r, "/l0g1n", http.StatusSeeOther)
+	http.Redirect(w, r, "/", http.StatusNotFound)
 }
 
 func generateSessionToken() (string, error) {

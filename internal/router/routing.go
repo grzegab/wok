@@ -76,12 +76,12 @@ func New(ipRepo IpRepository, sessionRepo SessionRepository, authHdlr *AuthHandl
 	// exemption list so the ban routes further down stay reachable too.
 	r.Get("/l0g1n", authHdlr.login)
 	r.Post("/l0g1n", authHdlr.login)
-	r.Post("/logout", authHdlr.logout)
 
 	// Protected routes: only these are gated by RequireLogin, so the ban
 	// catch-all routes below never get shadowed by a 404 from the auth check.
 	r.Group(func(pr chi.Router) {
 		pr.Use(RequireLogin(sessionRepo))
+		pr.Post("/l0g0ut", authHdlr.logout)
 		pr.Get("/", pagesHdlr.landing)
 		pr.Get("/list", pagesHdlr.list)
 		//pr.Get("application/{id}", application_details)
