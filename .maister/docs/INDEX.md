@@ -43,7 +43,7 @@ Naming consistency, automatic formatting, descriptive names, focused functions, 
 Letting code speak for itself, commenting sparingly, and avoiding change-log style comments in code.
 
 #### Development Conventions (`standards/global/conventions.md`)
-Predictable project structure, up-to-date documentation, clean version control practices, environment variable handling, minimal dependencies, consistent code reviews, testing standards, feature flags, changelog updates, building only what's needed, interface-based dependency injection for repositories, and build-tag variant files.
+Predictable project structure, up-to-date documentation, clean version control practices, environment variable handling, minimal dependencies, consistent code reviews, testing standards, feature flags, changelog updates, building only what's needed, interface-based dependency injection for repositories, and runtime debug flag.
 
 #### Error Handling (`standards/global/error-handling.md`)
 Clear user-facing messages, failing fast, typed exceptions, centralized error handling, graceful degradation, retry with backoff, resource cleanup, error wrapping with %w, and non-fatal error logging in handlers.

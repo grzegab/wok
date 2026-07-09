@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"html/template"
 	"log"
@@ -23,14 +24,19 @@ import (
 )
 
 func main() {
-	// check for debug
-	startDebug()
+	debug := flag.Bool("D", false, "enable debug mode (verbose logging, SQL and Redis command tracing)")
+	flag.Parse()
+
+	if *debug {
+		log.SetFlags(log.LstdFlags | log.Lmicroseconds | log.Lshortfile)
+		log.Println("Debug mode enabled")
+	}
 
 	// load config
 	conf := config.Load()
 
 	var ipRepo router.IpRepository
-	rdb, err := redis.NewClient(conf.RedisAddr)
+	rdb, err := redis.NewClient(conf.RedisAddr, *debug)
 	if err != nil {
 		log.Printf("Warning: could not connect to redis: %v\n", err)
 		fmt.Println("Warning: using in memory db")
@@ -51,7 +57,7 @@ func main() {
 		sessionRepo = repository.NewInMemorySessionRepository(conf.SessionTTL)
 	}
 
-	pgPool, err := postgres.NewClient(conf.PostgresDSN)
+	pgPool, err := postgres.NewClient(conf.PostgresDSN, *debug)
 	if err != nil {
 		log.Printf("Warning: could not connect to postgres: %v\n", err)
 	} else {
