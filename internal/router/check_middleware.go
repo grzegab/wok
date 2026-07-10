@@ -28,8 +28,9 @@ func CheckIP(ipRepo ipExists) func(next http.Handler) http.Handler {
 			}
 
 			if banned {
-				w.WriteHeader(http.StatusTeapot)
-				w.Write([]byte("Banned"))
+				log.Printf("banned IP %s called\n", ip)
+				w.WriteHeader(http.StatusNotFound)
+				w.Write([]byte("404 page not found"))
 				return
 			}
 

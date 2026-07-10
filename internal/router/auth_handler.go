@@ -89,7 +89,7 @@ func (h *AuthHandler) loginPost(w http.ResponseWriter, r *http.Request) {
 		MaxAge:   int(h.conf.SessionTTL.Seconds()),
 	})
 
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	http.Redirect(w, r, "/l1st", http.StatusSeeOther)
 }
 
 func (h *AuthHandler) renderLoginUnauthorized(w http.ResponseWriter, username string) {

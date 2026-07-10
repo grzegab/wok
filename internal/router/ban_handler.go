@@ -24,6 +24,6 @@ func ban(ipRepo bannedIps, reason string, w http.ResponseWriter, r *http.Request
 		}
 	}
 
-	w.WriteHeader(http.StatusTeapot)
-	w.Write([]byte("Banned"))
+	w.WriteHeader(http.StatusNotFound)
+	w.Write([]byte("404 page not found"))
 }

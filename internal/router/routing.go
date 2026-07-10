@@ -83,7 +83,7 @@ func New(ipRepo IpRepository, sessionRepo SessionRepository, authHdlr *AuthHandl
 		pr.Use(RequireLogin(sessionRepo))
 		pr.Post("/l0g0ut", authHdlr.logout)
 		pr.Get("/", pagesHdlr.landing)
-		pr.Get("/list", pagesHdlr.list)
+		pr.Get("/l1st", pagesHdlr.list)
 		//pr.Get("application/{id}", application_details)
 	})
 
