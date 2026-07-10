@@ -60,6 +60,7 @@ func main() {
 	pgPool, err := postgres.NewClient(conf.PostgresDSN, *debug)
 	if err != nil {
 		log.Printf("Warning: could not connect to postgres: %v\n", err)
+		panic("Database missing")
 	} else {
 		log.Println("Connected to Postgres")
 		defer pgPool.Close()
@@ -68,6 +69,7 @@ func main() {
 	tmpl, err := template.ParseFS(templates.FS, "base.gohtml", "partials/*.gohtml")
 	if err != nil {
 		log.Fatalf("could not parse templates: %v", err)
+		panic("Templates missing")
 	}
 
 	db := database.New(pgPool)
@@ -96,6 +98,7 @@ func main() {
 	go func() {
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Printf("server error: %v", err)
+			panic("Server error")
 		}
 	}()
 
