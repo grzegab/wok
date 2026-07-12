@@ -69,7 +69,12 @@ func New(ipRepo IpRepository, sessionRepo SessionRepository, authHdlr *AuthHandl
 		sessionRepo: sessionRepo,
 	}
 
-	// Assets
+	// Assets: embedded static files (Bootstrap CSS, etc.) served privately so
+	// they will not be visible on attacks
+	assetsFS, err := fs.Sub(templates.FSa, "assets")
+	if err != nil {
+		panic(fmt.Sprintf("could not open embedded assets: %v", err))
+	}
 
 	// Public auth routes: must stay outside the RequireLogin group below so
 	// unauthenticated visitors can reach them, and outside any per-path
@@ -81,6 +86,7 @@ func New(ipRepo IpRepository, sessionRepo SessionRepository, authHdlr *AuthHandl
 	// catch-all routes below never get shadowed by a 404 from the auth check.
 	r.Group(func(pr chi.Router) {
 		pr.Use(RequireLogin(sessionRepo))
+		r.Handle("/assets/*", http.StripPrefix("/assets/", http.FileServerFS(assetsFS)))
 		pr.Post("/l0g0ut", authHdlr.logout)
 		pr.Get("/", pagesHdlr.landing)
 		pr.Get("/l1st", pagesHdlr.list)
