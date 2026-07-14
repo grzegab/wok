@@ -1,4 +1,4 @@
-package router
+package app
 
 import (
 	"context"
@@ -7,11 +7,11 @@ import (
 	"net/http"
 )
 
-type bannedIps interface {
+type BannedIps interface {
 	Add(ctx context.Context, ip string, reason string) error
 }
 
-func ban(ipRepo bannedIps, reason string, w http.ResponseWriter, r *http.Request) {
+func Ban(ipRepo BannedIps, reason string, w http.ResponseWriter, r *http.Request) {
 	ip, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		ip = r.RemoteAddr

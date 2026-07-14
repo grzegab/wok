@@ -1,4 +1,4 @@
-package router
+package app
 
 import (
 	"context"
@@ -13,23 +13,25 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+const SessionCookieName = "wok_session"
+
 // loginFailureDelay is applied to every failed login attempt (missing
 // fields, unknown username, or wrong password) so response timing can't be
 // used to enumerate the valid username or tell failure reasons apart.
 var loginFailureDelay = time.Second
 
-type authSessionStore interface {
+type AuthSessionStore interface {
 	Create(ctx context.Context, token string) error
 	Revoke(ctx context.Context, token string) error
 }
 
 type AuthHandler struct {
-	sessionRepo authSessionStore
+	sessionRepo AuthSessionStore
 	conf        *config.Config
 	tmpl        *template.Template
 }
 
-func NewAuthHandler(sessionRepo authSessionStore, conf *config.Config, tmpl *template.Template) *AuthHandler {
+func NewAuthHandler(sessionRepo AuthSessionStore, conf *config.Config, tmpl *template.Template) *AuthHandler {
 	return &AuthHandler{sessionRepo: sessionRepo, conf: conf, tmpl: tmpl}
 }
 
@@ -39,16 +41,16 @@ type loginPageData struct {
 	LoggedIn bool
 }
 
-func (h *AuthHandler) login(w http.ResponseWriter, r *http.Request) {
+func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
-		h.loginPost(w, r)
+		h.LoginPost(w, r)
 		return
 	}
 
 	h.renderLogin(w, loginPageData{})
 }
 
-func (h *AuthHandler) loginPost(w http.ResponseWriter, r *http.Request) {
+func (h *AuthHandler) LoginPost(w http.ResponseWriter, r *http.Request) {
 	username := r.FormValue("username")
 	password := r.FormValue("password")
 
@@ -80,7 +82,7 @@ func (h *AuthHandler) loginPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.SetCookie(w, &http.Cookie{
-		Name:     sessionCookieName,
+		Name:     SessionCookieName,
 		Value:    token,
 		Path:     "/",
 		HttpOnly: true,
@@ -107,15 +109,15 @@ func (h *AuthHandler) renderLogin(w http.ResponseWriter, data loginPageData) {
 	}
 }
 
-func (h *AuthHandler) logout(w http.ResponseWriter, r *http.Request) {
-	if cookie, err := r.Cookie(sessionCookieName); err == nil {
+func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	if cookie, err := r.Cookie(SessionCookieName); err == nil {
 		if err := h.sessionRepo.Revoke(r.Context(), cookie.Value); err != nil {
 			log.Printf("could not revoke session: %v", err)
 		}
 	}
 
 	http.SetCookie(w, &http.Cookie{
-		Name:     sessionCookieName,
+		Name:     SessionCookieName,
 		Value:    "",
 		Path:     "/",
 		HttpOnly: true,

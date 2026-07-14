@@ -2,20 +2,33 @@
 
 {{ template "header" . }}
 
-<h1>WOK &mdash; Sign in</h1>
+<div class="row justify-content-center">
+    <div class="col-sm-8 col-md-6 col-lg-4">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h1 class="h4 mb-4 text-center">Sign in</h1>
 
-{{ if .Error }}
-<div role="alert">&#9888; {{ .Error }}</div>
-{{ end }}
+                {{ if .Error }}
+                <div class="alert alert-danger" role="alert">&#9888; {{ .Error }}</div>
+                {{ end }}
 
-<form method="POST" action="/l0g1n">
-    <label for="username">Username</label>
-    <input type="text" id="username" name="username" value="{{ .Username }}">
+                <form method="POST" action="/l0g1n">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Username</label>
+                        <input type="text" id="username" name="username" class="form-control" value="{{ .Username }}">
+                    </div>
 
-    <label for="password">Password</label>
-    <input type="password" id="password" name="password" value="">
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <input type="password" id="password" name="password" class="form-control" value="">
+                    </div>
 
-    <button type="submit">Log in</button>
-</form>
+                    <button type="submit" class="btn btn-primary w-100">Log in</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 
+{{ template "footer" . }}
 {{ end }}

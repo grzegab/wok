@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/getsentry/sentry-go"
+	"github.com/grzegab/wok/internal/app"
 	"github.com/grzegab/wok/internal/config"
 	database "github.com/grzegab/wok/internal/database/generated"
 	"github.com/grzegab/wok/internal/postgres"
@@ -66,16 +67,11 @@ func main() {
 		defer pgPool.Close()
 	}
 
-	tmpl, err := template.ParseFS(templates.FS, "base.gohtml", "partials/*.gohtml")
+	tmpl, err := template.ParseFS(templates.FS, "base.gohtml", "*/*.gohtml")
 	if err != nil {
-		log.Fatalf("could not parse templates: %v", err)
+		log.Printf("could not parse templates: %v", err)
 		panic("Templates missing")
 	}
-
-	db := database.New(pgPool)
-
-	authHandler := router.NewAuthHandler(sessionRepo, conf, tmpl)
-	pagesHandler := router.NewPagesHandler(tmpl, db)
 
 	// Init sentry (for logging errors on prod)
 	err = sentry.Init(sentry.ClientOptions{
@@ -85,7 +81,15 @@ func main() {
 		log.Printf("sentry.Init: %s\n", err)
 	}
 
-	r := router.New(ipRepo, sessionRepo, authHandler, pagesHandler)
+	db := database.New(pgPool)
+
+	var handlerTimeout = 5 * time.Second
+
+	authHandler := app.NewAuthHandler(sessionRepo, conf, tmpl)
+	defaultHandler := app.NewDefaultHandler(tmpl)
+	offerHandler := app.NewOffersHandler(db, tmpl, handlerTimeout)
+	r := router.New(ipRepo, sessionRepo, authHandler, defaultHandler, offerHandler)
+
 	server := &http.Server{
 		Addr:              conf.WebAddr,
 		Handler:           r.Mux(),

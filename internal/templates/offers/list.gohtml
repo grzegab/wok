@@ -1,0 +1,55 @@
+{{ define "offers/list" }}
+
+{{ template "header" . }}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">Applications</h1>
+    <a href="/4dd" class="btn btn-primary">+ Add application</a>
+</div>
+
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-striped table-hover align-middle mb-0">
+            <thead class="table-light">
+            <tr>
+                <th>Company</th>
+                <th>Application date</th>
+                <th>Status</th>
+                <th>Had chat</th>
+                <th class="text-end">Starting price</th>
+                <th class="text-end">Ending price</th>
+                <th class="text-end">My price</th>
+            </tr>
+            </thead>
+            <tbody>
+            {{ range .Applications }}
+            <tr>
+                <td class="fw-medium">{{ .CompanyName }}</td>
+                <td>{{ .ApplicationDate }}</td>
+                <td>
+                    {{ if eq .Status "applied" }}<span class="badge text-bg-primary">applied</span>
+                    {{ else if eq .Status "progress" }}<span class="badge text-bg-warning">progress</span>
+                    {{ else if eq .Status "failed" }}<span class="badge text-bg-danger">failed</span>
+                    {{ else if eq .Status "abandon" }}<span class="badge text-bg-secondary">abandon</span>
+                    {{ else }}<span class="badge text-bg-light border">{{ .Status }}</span>{{ end }}
+                </td>
+                <td>
+                    {{ if eq .HadChat "Yes" }}<span class="badge text-bg-success">Yes</span>
+                    {{ else }}<span class="badge text-bg-light border">No</span>{{ end }}
+                </td>
+                <td class="text-end">{{ .StartingPrice }}</td>
+                <td class="text-end">{{ .EndingPrice }}</td>
+                <td class="text-end">{{ .MyPrice }}</td>
+            </tr>
+            {{ else }}
+            <tr>
+                <td colspan="7" class="text-center text-muted py-5">No applications yet.</td>
+            </tr>
+            {{ end }}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{{ template "footer" . }}
+{{ end }}

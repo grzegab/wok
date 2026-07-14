@@ -4,9 +4,9 @@ import (
 	"context"
 	"log"
 	"net/http"
-)
 
-const sessionCookieName = "wok_session"
+	"github.com/grzegab/wok/internal/app"
+)
 
 type sessionValidator interface {
 	Validate(ctx context.Context, token string) (bool, error)
@@ -15,7 +15,7 @@ type sessionValidator interface {
 func RequireLogin(sessionRepo sessionValidator) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			cookie, err := r.Cookie(sessionCookieName)
+			cookie, err := r.Cookie(app.SessionCookieName)
 			if err != nil {
 				http.NotFound(w, r)
 				return

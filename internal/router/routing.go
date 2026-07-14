@@ -2,11 +2,14 @@ package router
 
 import (
 	"fmt"
+	"io/fs"
 	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/grzegab/wok/internal/app"
+	"github.com/grzegab/wok/internal/templates"
 )
 
 var banUri = []string{
@@ -45,16 +48,16 @@ type Router struct {
 }
 
 type IpRepository interface {
-	bannedIps
+	app.BannedIps
 	ipExists
 }
 
 type SessionRepository interface {
-	authSessionStore
+	app.AuthSessionStore
 	sessionValidator
 }
 
-func New(ipRepo IpRepository, sessionRepo SessionRepository, authHdlr *AuthHandler, pagesHdlr *PagesHandler) *Router {
+func New(ipRepo IpRepository, sessionRepo SessionRepository, authHdlr *app.AuthHandler, defaultHndl *app.DefaultHandler, offers app.IOffersHandler) *Router {
 	r := chi.NewRouter()
 	r.Use(middleware.ClientIPFromRemoteAddr)
 	r.Use(CheckIP(ipRepo))
@@ -79,17 +82,19 @@ func New(ipRepo IpRepository, sessionRepo SessionRepository, authHdlr *AuthHandl
 	// Public auth routes: must stay outside the RequireLogin group below so
 	// unauthenticated visitors can reach them, and outside any per-path
 	// exemption list so the ban routes further down stay reachable too.
-	r.Get("/l0g1n", authHdlr.login)
-	r.Post("/l0g1n", authHdlr.login)
+	r.Get("/l0g1n", authHdlr.Login)
+	r.Post("/l0g1n", authHdlr.Login)
+	r.Get("/", defaultHndl.Landing)
 
 	// Protected routes: only these are gated by RequireLogin, so the ban
 	// catch-all routes below never get shadowed by a 404 from the auth check.
 	r.Group(func(pr chi.Router) {
 		pr.Use(RequireLogin(sessionRepo))
-		r.Handle("/assets/*", http.StripPrefix("/assets/", http.FileServerFS(assetsFS)))
-		pr.Post("/l0g0ut", authHdlr.logout)
-		pr.Get("/", pagesHdlr.landing)
-		pr.Get("/l1st", pagesHdlr.list)
+		pr.Handle("/assets/*", http.StripPrefix("/assets/", http.FileServerFS(assetsFS)))
+		pr.Post("/l0g0ut", authHdlr.Logout)
+		pr.Get("/l1st", offers.List)
+		pr.Get("/4dd", offers.ShowAdd)
+		pr.Post("/4dd", offers.Add)
 		//pr.Get("application/{id}", application_details)
 	})
 
@@ -97,22 +102,22 @@ func New(ipRepo IpRepository, sessionRepo SessionRepository, authHdlr *AuthHandl
 	for _, uri := range banUri {
 		reason := fmt.Sprintf("banning %s GET", uri)
 		r.Get(uri, func(w http.ResponseWriter, r *http.Request) {
-			ban(routerObj.ipRepo, reason, w, r)
+			app.Ban(routerObj.ipRepo, reason, w, r)
 		})
 	}
 
 	// Ban other methods
 	r.Post("/*", func(w http.ResponseWriter, r *http.Request) {
 		reason := fmt.Sprintf("banning default POST: %s", r.RequestURI)
-		ban(routerObj.ipRepo, reason, w, r)
+		app.Ban(routerObj.ipRepo, reason, w, r)
 	})
 	r.Put("/*", func(w http.ResponseWriter, r *http.Request) {
 		reason := fmt.Sprintf("banning default PUT: %s", r.RequestURI)
-		ban(routerObj.ipRepo, reason, w, r)
+		app.Ban(routerObj.ipRepo, reason, w, r)
 	})
 	r.Delete("/*", func(w http.ResponseWriter, r *http.Request) {
 		reason := fmt.Sprintf("banning default Delete: %s", r.RequestURI)
-		ban(routerObj.ipRepo, reason, w, r)
+		app.Ban(routerObj.ipRepo, reason, w, r)
 	})
 
 	return routerObj
