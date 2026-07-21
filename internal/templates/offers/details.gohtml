@@ -1,0 +1,126 @@
+{{ define "offers/details" }}
+
+{{ template "head" }}
+{{ template "header" }}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">Application details</h1>
+    <div class="d-flex gap-2">
+        <a href="/upd4te/{{ .ID }}" class="btn btn-primary">Edit</a>
+        <a href="/l1st" class="btn btn-outline-secondary">Back to list</a>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4 border-start border-4
+    {{ if eq .Status "applied" }}border-primary
+    {{ else if eq .Status "progress" }}border-warning
+    {{ else if eq .Status "failed" }}border-danger
+    {{ else if eq .Status "abandon" }}border-secondary
+    {{ else }}border-light{{ end }}">
+    <div class="card-body d-flex justify-content-between align-items-start flex-wrap gap-3">
+        <div>
+            <h2 class="h4 mb-1">{{ .CompanyName }}</h2>
+            <div class="text-muted">Applied on {{ .ApplicationDate }}</div>
+        </div>
+        <div>
+            {{ if eq .Status "applied" }}<span class="badge text-bg-primary fs-6">applied</span>
+            {{ else if eq .Status "progress" }}<span class="badge text-bg-warning fs-6">progress</span>
+            {{ else if eq .Status "failed" }}<span class="badge text-bg-danger fs-6">failed</span>
+            {{ else if eq .Status "abandon" }}<span class="badge text-bg-secondary fs-6">abandon</span>
+            {{ else }}<span class="badge text-bg-light border fs-6">{{ .Status }}</span>{{ end }}
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-body-tertiary fw-semibold">Overview</div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-5 text-muted fw-normal">Application date</dt>
+                    <dd class="col-7">{{ .ApplicationDate }}</dd>
+
+                    <dt class="col-5 text-muted fw-normal">Had a chat</dt>
+                    <dd class="col-7">
+                        {{ if eq .HadChat "Yes" }}<span class="badge text-bg-success">Yes</span>
+                        {{ else }}<span class="badge text-bg-light border">No</span>{{ end }}
+                    </dd>
+
+                    <dt class="col-5 text-muted fw-normal">Stack</dt>
+                    <dd class="col-7">{{ .Stack }}</dd>
+
+                    <dt class="col-5 text-muted fw-normal">Offer link</dt>
+                    <dd class="col-7 text-truncate">
+                        {{ if .HasOfferLink }}<a href="{{ .OfferLink }}" target="_blank" rel="noopener noreferrer">{{ .OfferLink }}</a>
+                        {{ else }}<span class="text-muted">-</span>{{ end }}
+                    </dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-body-tertiary fw-semibold">Prices</div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-5 text-muted fw-normal">Starting price</dt>
+                    <dd class="col-7">{{ .StartingPrice }}</dd>
+
+                    <dt class="col-5 text-muted fw-normal">Ending price</dt>
+                    <dd class="col-7">{{ .EndingPrice }}</dd>
+
+                    <dt class="col-5 text-muted fw-normal">My price</dt>
+                    <dd class="col-7">{{ .MyPrice }}</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12">
+        <div class="card shadow-sm
+            {{ if eq .Status "failed" }}bg-danger-subtle border-danger-subtle
+            {{ else if eq .Status "applied" }}bg-primary-subtle border-primary-subtle
+            {{ else if eq .Status "progress" }}bg-warning-subtle border-warning-subtle{{ end }}">
+            <div class="card-header bg-body-tertiary fw-semibold">Outcome</div>
+            <div class="card-body">
+                <p class="mb-0" style="white-space: pre-wrap;">{{ .Outcome }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-body-tertiary fw-semibold">Fixes after chat</div>
+            <div class="card-body">
+                <p class="mb-0" style="white-space: pre-wrap;">{{ .FixesAfterChat }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-body-tertiary fw-semibold">Things to fix</div>
+            <div class="card-body">
+                <p class="mb-0" style="white-space: pre-wrap;">{{ .ThingsToFix }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-body-tertiary fw-semibold">Additional info</div>
+            <div class="card-body">
+                <p class="mb-0" style="white-space: pre-wrap;">{{ .AdditionalInfo }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="text-muted small mt-4 mb-4">
+    Created {{ .CreatedAt }} &middot; Last updated {{ .UpdatedAt }}
+</div>
+
+{{ template "footer" }}
+{{ end }}

@@ -6,9 +6,15 @@ import "embed"
 // partials/, and each system area has its own directory (offers/, and later
 // cv/, stats/, scraped/). When a directory gets its first *.gohtml file, add
 // its glob both here and to the template.ParseFS call in cmd/web/main.go.
-//
-//go:embed base.gohtml */*.gohtml other/*
-var FS embed.FS
+
+//go:embed offers/*.gohtml partials/*.gohtml
+var Offers embed.FS
+
+//go:embed defaults/*.gohtml partials/*.gohtml
+var Defaults embed.FS
+
+//go:embed auth/*.gohtml partials/*.gohtml
+var Auth embed.FS
 
 //go:embed assets/*
-var FSa embed.FS
+var Assets embed.FS

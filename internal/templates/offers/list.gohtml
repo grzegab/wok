@@ -1,6 +1,11 @@
 {{ define "offers/list" }}
 
-{{ template "header" . }}
+{{ template "head" }}
+{{ template "header" }}
+
+{{ if .Flash }}
+<div class="alert alert-success" role="alert">{{ .Flash }}</div>
+{{ end }}
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1 class="h3 mb-0">Applications</h1>
@@ -19,12 +24,13 @@
                 <th class="text-end">Starting price</th>
                 <th class="text-end">Ending price</th>
                 <th class="text-end">My price</th>
+                <th></th>
             </tr>
             </thead>
             <tbody>
             {{ range .Applications }}
             <tr>
-                <td class="fw-medium">{{ .CompanyName }}</td>
+                <td class="fw-medium"><a href="/1nf0/{{ .ID }}" class="link-body-emphasis text-decoration-none">{{ .CompanyName }}</a></td>
                 <td>{{ .ApplicationDate }}</td>
                 <td>
                     {{ if eq .Status "applied" }}<span class="badge text-bg-primary">applied</span>
@@ -40,16 +46,16 @@
                 <td class="text-end">{{ .StartingPrice }}</td>
                 <td class="text-end">{{ .EndingPrice }}</td>
                 <td class="text-end">{{ .MyPrice }}</td>
+                <td class="text-end"><a href="/1nf0/{{ .ID }}" class="btn btn-sm btn-outline-secondary">Details</a></td>
             </tr>
             {{ else }}
             <tr>
-                <td colspan="7" class="text-center text-muted py-5">No applications yet.</td>
+                <td colspan="8" class="text-center text-muted py-5">No applications yet.</td>
             </tr>
             {{ end }}
             </tbody>
         </table>
     </div>
 </div>
-
-{{ template "footer" . }}
+{{ template "footer" }}
 {{ end }}

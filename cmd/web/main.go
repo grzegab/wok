@@ -67,9 +67,21 @@ func main() {
 		defer pgPool.Close()
 	}
 
-	tmpl, err := template.ParseFS(templates.FS, "base.gohtml", "*/*.gohtml")
+	offersTmpl, err := template.ParseFS(templates.Offers, "*/*.gohtml")
 	if err != nil {
-		log.Printf("could not parse templates: %v", err)
+		log.Printf("could not parse offers templates: %v", err)
+		panic("Templates missing")
+	}
+
+	defaultsTmpl, err := template.ParseFS(templates.Defaults, "*/*.gohtml")
+	if err != nil {
+		log.Printf("could not parse defaults templates: %v", err)
+		panic("Templates missing")
+	}
+
+	authTmpl, err := template.ParseFS(templates.Auth, "*/*.gohtml")
+	if err != nil {
+		log.Printf("could not parse auth templates: %v", err)
 		panic("Templates missing")
 	}
 
@@ -85,9 +97,9 @@ func main() {
 
 	var handlerTimeout = 5 * time.Second
 
-	authHandler := app.NewAuthHandler(sessionRepo, conf, tmpl)
-	defaultHandler := app.NewDefaultHandler(tmpl)
-	offerHandler := app.NewOffersHandler(db, tmpl, handlerTimeout)
+	authHandler := app.NewAuthHandler(sessionRepo, conf, authTmpl)
+	defaultHandler := app.NewDefaultHandler(defaultsTmpl)
+	offerHandler := app.NewOffersHandler(db, offersTmpl, handlerTimeout)
 	r := router.New(ipRepo, sessionRepo, authHandler, defaultHandler, offerHandler)
 
 	server := &http.Server{
