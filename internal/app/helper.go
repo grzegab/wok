@@ -50,3 +50,24 @@ func formatPrice(p pgtype.Int4) string {
 	}
 	return fmt.Sprintf("%d", p.Int32)
 }
+
+func formatPriceInput(p pgtype.Int4) string {
+	if !p.Valid {
+		return ""
+	}
+	return strconv.Itoa(int(p.Int32))
+}
+
+func formatText(t pgtype.Text) string {
+	if !t.Valid || strings.TrimSpace(t.String) == "" {
+		return "-"
+	}
+	return t.String
+}
+
+func formatTimestamp(t pgtype.Timestamptz) string {
+	if !t.Valid {
+		return "-"
+	}
+	return t.Time.Format("2006-01-02 15:04")
+}

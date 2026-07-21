@@ -38,7 +38,6 @@ func NewAuthHandler(sessionRepo AuthSessionStore, conf *config.Config, tmpl *tem
 type loginPageData struct {
 	Username string
 	Error    string
-	LoggedIn bool
 }
 
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
