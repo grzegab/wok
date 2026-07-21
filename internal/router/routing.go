@@ -74,7 +74,7 @@ func New(ipRepo IpRepository, sessionRepo SessionRepository, authHdlr *app.AuthH
 
 	// Assets: embedded static files (Bootstrap CSS, etc.) served privately so
 	// they will not be visible on attacks
-	assetsFS, err := fs.Sub(templates.FSa, "assets")
+	assetsHTML, err := fs.Sub(templates.Assets, "assets")
 	if err != nil {
 		panic(fmt.Sprintf("could not open embedded assets: %v", err))
 	}
@@ -90,12 +90,14 @@ func New(ipRepo IpRepository, sessionRepo SessionRepository, authHdlr *app.AuthH
 	// catch-all routes below never get shadowed by a 404 from the auth check.
 	r.Group(func(pr chi.Router) {
 		pr.Use(RequireLogin(sessionRepo))
-		pr.Handle("/assets/*", http.StripPrefix("/assets/", http.FileServerFS(assetsFS)))
+		pr.Handle("/assets/*", http.StripPrefix("/assets/", http.FileServerFS(assetsHTML)))
 		pr.Post("/l0g0ut", authHdlr.Logout)
 		pr.Get("/l1st", offers.List)
 		pr.Get("/4dd", offers.ShowAdd)
 		pr.Post("/4dd", offers.Add)
-		//pr.Get("application/{id}", application_details)
+		pr.Get("/upd4te/{id}", offers.ShowUpdateForm)
+		pr.Post("/upd4te/{id}", offers.Update)
+		pr.Get("/1nf0/{id}", offers.Info)
 	})
 
 	// Ban most important GET

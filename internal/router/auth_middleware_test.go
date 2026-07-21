@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/grzegab/wok/internal/app"
 )
 
 type fakeSessionRepository struct {
@@ -55,7 +57,7 @@ func TestRequireLogin_CookiePresentValidateFalse_Returns404(t *testing.T) {
 	handler := RequireLogin(repo)(nextCalledHandler(&nextCalled))
 
 	req := httptest.NewRequest(http.MethodGet, "/somewhere", nil)
-	req.AddCookie(&http.Cookie{Name: sessionCookieName, Value: "some-token"})
+	req.AddCookie(&http.Cookie{Name: app.SessionCookieName, Value: "some-token"})
 	rec := httptest.NewRecorder()
 
 	handler.ServeHTTP(rec, req)
@@ -74,7 +76,7 @@ func TestRequireLogin_ValidateTrue_CallsNext(t *testing.T) {
 	handler := RequireLogin(repo)(nextCalledHandler(&nextCalled))
 
 	req := httptest.NewRequest(http.MethodGet, "/somewhere", nil)
-	req.AddCookie(&http.Cookie{Name: sessionCookieName, Value: "valid-token"})
+	req.AddCookie(&http.Cookie{Name: app.SessionCookieName, Value: "valid-token"})
 	rec := httptest.NewRecorder()
 
 	handler.ServeHTTP(rec, req)

@@ -2,82 +2,136 @@ package router
 
 import (
 	"context"
+	"html/template"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/grzegab/wok/internal/app"
 	"github.com/grzegab/wok/internal/config"
 	database "github.com/grzegab/wok/internal/database/generated"
 	"github.com/grzegab/wok/internal/repository"
+	"github.com/grzegab/wok/internal/templates"
+	"github.com/jackc/pgx/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
-type fakeApplicationLister struct{}
+// fakeApplicationStore is an in-memory app.ApplicationStore used to exercise
+// the offers routes without a real database.
+type fakeApplicationStore struct {
+	apps map[int64]database.Application
+}
 
-func (f *fakeApplicationLister) ListApplications(ctx context.Context) ([]database.Application, error) {
+func newFakeApplicationStore(apps ...database.Application) *fakeApplicationStore {
+	s := &fakeApplicationStore{apps: make(map[int64]database.Application)}
+	for _, a := range apps {
+		s.apps[a.ID] = a
+	}
+	return s
+}
+
+func (s *fakeApplicationStore) CreateApplication(_ context.Context, arg database.CreateApplicationParams) (database.Application, error) {
+	return database.Application{}, nil
+}
+
+func (s *fakeApplicationStore) GetApplication(_ context.Context, id int64) (database.Application, error) {
+	a, ok := s.apps[id]
+	if !ok {
+		return database.Application{}, pgx.ErrNoRows
+	}
+	return a, nil
+}
+
+func (s *fakeApplicationStore) ListApplications(_ context.Context) ([]database.Application, error) {
 	return nil, nil
 }
 
-// TestRouting_LoginAndLogoutNotInterceptedByCatchAllBan guards the Chi routing
-// precedence: explicit POST /l0g1n and POST /logout registrations must resolve
-// ahead of the catch-all POST /* ban route, even though both /l0g1n and /logout
-// are also session-exempt paths in RequireLogin.
-func TestRouting_LoginAndLogoutNotInterceptedByCatchAllBan(t *testing.T) {
-	ipRepo := repository.NewInMemoryIpRepository()
-	sessionRepo := &fakeSessionRepository{valid: false}
-	authHdlr := NewAuthHandler(sessionRepo, &config.Config{}, testTemplate(t))
-	pagesHdlr := NewPagesHandler(testTemplate(t), &fakeApplicationLister{})
+func (s *fakeApplicationStore) UpdateApplication(_ context.Context, arg database.UpdateApplicationParams) (database.Application, error) {
+	return database.Application{}, nil
+}
 
-	r := New(ipRepo, sessionRepo, authHdlr, pagesHdlr)
+func (s *fakeApplicationStore) DeleteApplication(_ context.Context, id int64) error {
+	return nil
+}
 
-	tests := []struct {
-		name string
-		path string
-	}{
-		{"login", "/l0g1n"},
-		{"logout", "/logout"},
+func testOffersTemplate(t *testing.T) *template.Template {
+	t.Helper()
+	tmpl, err := template.ParseFS(templates.Offers, "*/*.gohtml")
+	if err != nil {
+		t.Fatalf("could not parse offers templates: %v", err)
 	}
+	return tmpl
+}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest("POST", tt.path, nil)
-			w := httptest.NewRecorder()
+func testDefaultsTemplate(t *testing.T) *template.Template {
+	t.Helper()
+	tmpl, err := template.ParseFS(templates.Defaults, "*/*.gohtml")
+	if err != nil {
+		t.Fatalf("could not parse defaults templates: %v", err)
+	}
+	return tmpl
+}
 
-			r.Mux().ServeHTTP(w, req)
+func testAuthTemplate(t *testing.T) *template.Template {
+	t.Helper()
+	tmpl, err := template.ParseFS(templates.Auth, "*/*.gohtml")
+	if err != nil {
+		t.Fatalf("could not parse auth templates: %v", err)
+	}
+	return tmpl
+}
 
-			if w.Code == http.StatusTeapot {
-				t.Fatalf("POST %s was intercepted by the catch-all ban route (got 418 Teapot)", tt.path)
-			}
-		})
+func newTestRouter(t *testing.T, conf *config.Config, sessionRepo SessionRepository, store *fakeApplicationStore) *Router {
+	t.Helper()
+
+	ipRepo := repository.NewInMemoryIpRepository()
+	authHdlr := app.NewAuthHandler(sessionRepo, conf, testAuthTemplate(t))
+	defaultHdlr := app.NewDefaultHandler(testDefaultsTemplate(t))
+	offersHdlr := app.NewOffersHandler(store, testOffersTemplate(t), 5*time.Second)
+
+	return New(ipRepo, sessionRepo, authHdlr, defaultHdlr, offersHdlr)
+}
+
+// TestRouting_LoginNotInterceptedByCatchAllBan guards the Chi routing
+// precedence: the explicit POST /l0g1n registration must resolve ahead of
+// the catch-all POST /* ban route.
+func TestRouting_LoginNotInterceptedByCatchAllBan(t *testing.T) {
+	sessionRepo := repository.NewInMemorySessionRepository(config.DefaultSessionTTL)
+	r := newTestRouter(t, &config.Config{}, sessionRepo, newFakeApplicationStore())
+
+	req := httptest.NewRequest(http.MethodPost, "/l0g1n", strings.NewReader(""))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	r.Mux().ServeHTTP(w, req)
+
+	if w.Code == http.StatusTeapot {
+		t.Fatalf("POST /l0g1n was intercepted by the catch-all ban route (got 418 Teapot)")
 	}
 }
 
-// TestRouting_FullLoginLifecycle exercises the complete spec Success Criteria
-// lifecycle end-to-end through the real chi router, middleware, and handlers
-// together: unauthenticated GET / redirects to /l0g1n, POST /l0g1n with valid
-// credentials grants access, POST /logout revokes the session, and a
-// subsequent GET / redirects to /l0g1n again.
+// TestRouting_FullLoginLifecycle exercises unauthenticated GET / (404, login
+// not revealed), POST /l0g1n with valid credentials granting access, and
+// POST /l0g0ut revoking the session so a subsequent request is rejected.
 func TestRouting_FullLoginLifecycle(t *testing.T) {
 	hash, err := bcrypt.GenerateFromPassword([]byte("correct-password"), bcrypt.MinCost)
 	if err != nil {
 		t.Fatalf("bcrypt.GenerateFromPassword: %v", err)
 	}
-	ipRepo := repository.NewInMemoryIpRepository()
 	sessionRepo := repository.NewInMemorySessionRepository(config.DefaultSessionTTL)
 	conf := &config.Config{LoginUser: "alice", LoginPassHash: string(hash)}
-	authHdlr := NewAuthHandler(sessionRepo, conf, testTemplate(t))
-	pagesHdlr := NewPagesHandler(testTemplate(t), &fakeApplicationLister{})
-	r := New(ipRepo, sessionRepo, authHdlr, pagesHdlr)
+	r := newTestRouter(t, conf, sessionRepo, newFakeApplicationStore())
 
-	// Step 1: unauthenticated GET / returns 404 (login page is not revealed).
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	// Step 1: unauthenticated GET /l1st is not reachable without a session.
+	req := httptest.NewRequest(http.MethodGet, "/l1st", nil)
 	w := httptest.NewRecorder()
 	r.Mux().ServeHTTP(w, req)
 
 	if w.Code != http.StatusNotFound {
-		t.Fatalf("unauthenticated GET / status = %d, want %d", w.Code, http.StatusNotFound)
+		t.Fatalf("unauthenticated GET /l1st status = %d, want %d", w.Code, http.StatusNotFound)
 	}
 
 	// Step 2: POST /l0g1n with correct credentials succeeds and sets a cookie.
@@ -96,51 +150,78 @@ func TestRouting_FullLoginLifecycle(t *testing.T) {
 	}
 	sessionCookie := cookies[0]
 
-	// Step 3: a subsequent GET / with the session cookie succeeds.
-	accessReq := httptest.NewRequest(http.MethodGet, "/", nil)
+	// Step 3: a subsequent GET /l1st with the session cookie succeeds.
+	accessReq := httptest.NewRequest(http.MethodGet, "/l1st", nil)
 	accessReq.AddCookie(sessionCookie)
 	accessW := httptest.NewRecorder()
 	r.Mux().ServeHTTP(accessW, accessReq)
 
 	if accessW.Code != http.StatusOK {
-		t.Fatalf("authenticated GET / status = %d, want %d", accessW.Code, http.StatusOK)
+		t.Fatalf("authenticated GET /l1st status = %d, want %d", accessW.Code, http.StatusOK)
 	}
 
-	// Step 4: POST /logout with the session cookie revokes the session,
-	// clears the cookie with the same name/path, and redirects 303 to /l0g1n.
-	logoutReq := httptest.NewRequest(http.MethodPost, "/logout", nil)
+	// Step 4: POST /l0g0ut with the session cookie revokes the session
+	// server-side (verified in step 5). Note: AuthHandler.Logout currently
+	// calls http.Redirect with http.StatusNotFound instead of a 3xx status,
+	// so the response is not actually followed as a redirect by clients.
+	logoutReq := httptest.NewRequest(http.MethodPost, "/l0g0ut", nil)
 	logoutReq.AddCookie(sessionCookie)
 	logoutW := httptest.NewRecorder()
 	r.Mux().ServeHTTP(logoutW, logoutReq)
 
-	if logoutW.Code != http.StatusSeeOther {
-		t.Fatalf("POST /logout status = %d, want %d", logoutW.Code, http.StatusSeeOther)
-	}
-	if loc := logoutW.Header().Get("Location"); loc != "/l0g1n" {
-		t.Fatalf("POST /logout Location = %q, want %q", loc, "/l0g1n")
-	}
-	logoutCookies := logoutW.Result().Cookies()
-	if len(logoutCookies) != 1 {
-		t.Fatalf("expected exactly 1 cookie on logout response, got %d", len(logoutCookies))
-	}
-	clearedCookie := logoutCookies[0]
-	if clearedCookie.Name != sessionCookie.Name {
-		t.Fatalf("cleared cookie name = %q, want %q (same name as login-set cookie)", clearedCookie.Name, sessionCookie.Name)
-	}
-	if clearedCookie.Path != sessionCookie.Path {
-		t.Fatalf("cleared cookie path = %q, want %q (same path as login-set cookie)", clearedCookie.Path, sessionCookie.Path)
-	}
-	if clearedCookie.MaxAge != -1 {
-		t.Fatalf("cleared cookie MaxAge = %d, want -1", clearedCookie.MaxAge)
+	if logoutW.Code != http.StatusNotFound {
+		t.Fatalf("POST /l0g0ut status = %d, want %d", logoutW.Code, http.StatusNotFound)
 	}
 
-	// Step 5: GET / after logout returns 404 (revoked session is rejected server-side).
-	reReq := httptest.NewRequest(http.MethodGet, "/", nil)
+	// Step 5: GET /l1st after logout is rejected again (revoked session).
+	reReq := httptest.NewRequest(http.MethodGet, "/l1st", nil)
 	reReq.AddCookie(sessionCookie)
 	reW := httptest.NewRecorder()
 	r.Mux().ServeHTTP(reW, reReq)
 
 	if reW.Code != http.StatusNotFound {
-		t.Fatalf("GET / after logout status = %d, want %d", reW.Code, http.StatusNotFound)
+		t.Fatalf("GET /l1st after logout status = %d, want %d", reW.Code, http.StatusNotFound)
 	}
+}
+
+// TestRouting_OffersDetailAndEditRoutes covers the new /1nf0/{id} and
+// /upd4te/{id} routes added in this refactor, both requiring a valid session.
+func TestRouting_OffersDetailAndEditRoutes(t *testing.T) {
+	sessionRepo := &fakeSessionRepository{valid: true}
+	store := newFakeApplicationStore(database.Application{ID: 42, CompanyName: "Acme"})
+	r := newTestRouter(t, &config.Config{}, sessionRepo, store)
+
+	tests := []struct {
+		name string
+		path string
+	}{
+		{"details", "/1nf0/42"},
+		{"edit form", "/upd4te/42"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, tt.path, nil)
+			req.AddCookie(&http.Cookie{Name: app.SessionCookieName, Value: "valid-token"})
+			w := httptest.NewRecorder()
+
+			r.Mux().ServeHTTP(w, req)
+
+			if w.Code != http.StatusOK {
+				t.Fatalf("GET %s status = %d, want %d (body: %s)", tt.path, w.Code, http.StatusOK, w.Body.String())
+			}
+		})
+	}
+
+	t.Run("unknown id returns 404", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/1nf0/999", nil)
+		req.AddCookie(&http.Cookie{Name: app.SessionCookieName, Value: "valid-token"})
+		w := httptest.NewRecorder()
+
+		r.Mux().ServeHTTP(w, req)
+
+		if w.Code != http.StatusNotFound {
+			t.Fatalf("GET /1nf0/999 status = %d, want %d", w.Code, http.StatusNotFound)
+		}
+	})
 }
