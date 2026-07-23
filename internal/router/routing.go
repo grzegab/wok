@@ -8,7 +8,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/grzegab/wok/internal/app"
+	"github.com/grzegab/wok/internal/handlers"
 	"github.com/grzegab/wok/internal/templates"
 )
 
@@ -48,16 +48,16 @@ type Router struct {
 }
 
 type IpRepository interface {
-	app.BannedIps
+	handlers.BannedIps
 	ipExists
 }
 
 type SessionRepository interface {
-	app.AuthSessionStore
+	handlers.AuthSessionStore
 	sessionValidator
 }
 
-func New(ipRepo IpRepository, sessionRepo SessionRepository, authHdlr *app.AuthHandler, defaultHndl *app.DefaultHandler, offers app.IOffersHandler) *Router {
+func New(ipRepo IpRepository, sessionRepo SessionRepository, authHdlr *handlers.AuthHandler, defaultHndl *handlers.DefaultHandler, offers handlers.IOffersHandler) *Router {
 	r := chi.NewRouter()
 	r.Use(middleware.ClientIPFromRemoteAddr)
 	r.Use(CheckIP(ipRepo))
@@ -104,22 +104,22 @@ func New(ipRepo IpRepository, sessionRepo SessionRepository, authHdlr *app.AuthH
 	for _, uri := range banUri {
 		reason := fmt.Sprintf("banning %s GET", uri)
 		r.Get(uri, func(w http.ResponseWriter, r *http.Request) {
-			app.Ban(routerObj.ipRepo, reason, w, r)
+			handlers.Ban(routerObj.ipRepo, reason, w, r)
 		})
 	}
 
 	// Ban other methods
 	r.Post("/*", func(w http.ResponseWriter, r *http.Request) {
 		reason := fmt.Sprintf("banning default POST: %s", r.RequestURI)
-		app.Ban(routerObj.ipRepo, reason, w, r)
+		handlers.Ban(routerObj.ipRepo, reason, w, r)
 	})
 	r.Put("/*", func(w http.ResponseWriter, r *http.Request) {
 		reason := fmt.Sprintf("banning default PUT: %s", r.RequestURI)
-		app.Ban(routerObj.ipRepo, reason, w, r)
+		handlers.Ban(routerObj.ipRepo, reason, w, r)
 	})
 	r.Delete("/*", func(w http.ResponseWriter, r *http.Request) {
 		reason := fmt.Sprintf("banning default Delete: %s", r.RequestURI)
-		app.Ban(routerObj.ipRepo, reason, w, r)
+		handlers.Ban(routerObj.ipRepo, reason, w, r)
 	})
 
 	return routerObj

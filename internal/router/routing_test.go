@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/grzegab/wok/internal/app"
 	"github.com/grzegab/wok/internal/config"
 	database "github.com/grzegab/wok/internal/database/generated"
+	"github.com/grzegab/wok/internal/handlers"
 	"github.com/grzegab/wok/internal/repository"
 	"github.com/grzegab/wok/internal/templates"
 	"github.com/jackc/pgx/v5"
@@ -88,9 +88,9 @@ func newTestRouter(t *testing.T, conf *config.Config, sessionRepo SessionReposit
 	t.Helper()
 
 	ipRepo := repository.NewInMemoryIpRepository()
-	authHdlr := app.NewAuthHandler(sessionRepo, conf, testAuthTemplate(t))
-	defaultHdlr := app.NewDefaultHandler(testDefaultsTemplate(t))
-	offersHdlr := app.NewOffersHandler(store, testOffersTemplate(t), 5*time.Second)
+	authHdlr := handlers.NewAuthHandler(sessionRepo, conf, testAuthTemplate(t))
+	defaultHdlr := handlers.NewDefaultHandler(testDefaultsTemplate(t))
+	offersHdlr := handlers.NewOffersHandler(store, testOffersTemplate(t), 5*time.Second)
 
 	return New(ipRepo, sessionRepo, authHdlr, defaultHdlr, offersHdlr)
 }
@@ -202,7 +202,7 @@ func TestRouting_OffersDetailAndEditRoutes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, tt.path, nil)
-			req.AddCookie(&http.Cookie{Name: app.SessionCookieName, Value: "valid-token"})
+			req.AddCookie(&http.Cookie{Name: handlers.SessionCookieName, Value: "valid-token"})
 			w := httptest.NewRecorder()
 
 			r.Mux().ServeHTTP(w, req)
@@ -215,7 +215,7 @@ func TestRouting_OffersDetailAndEditRoutes(t *testing.T) {
 
 	t.Run("unknown id returns 404", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/1nf0/999", nil)
-		req.AddCookie(&http.Cookie{Name: app.SessionCookieName, Value: "valid-token"})
+		req.AddCookie(&http.Cookie{Name: handlers.SessionCookieName, Value: "valid-token"})
 		w := httptest.NewRecorder()
 
 		r.Mux().ServeHTTP(w, req)

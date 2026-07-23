@@ -14,9 +14,9 @@ import (
 	"time"
 
 	"github.com/getsentry/sentry-go"
-	"github.com/grzegab/wok/internal/app"
 	"github.com/grzegab/wok/internal/config"
 	database "github.com/grzegab/wok/internal/database/generated"
+	"github.com/grzegab/wok/internal/handlers"
 	"github.com/grzegab/wok/internal/postgres"
 	"github.com/grzegab/wok/internal/redis"
 	"github.com/grzegab/wok/internal/repository"
@@ -97,9 +97,9 @@ func main() {
 
 	var handlerTimeout = 5 * time.Second
 
-	authHandler := app.NewAuthHandler(sessionRepo, conf, authTmpl)
-	defaultHandler := app.NewDefaultHandler(defaultsTmpl)
-	offerHandler := app.NewOffersHandler(db, offersTmpl, handlerTimeout)
+	authHandler := handlers.NewAuthHandler(sessionRepo, conf, authTmpl)
+	defaultHandler := handlers.NewDefaultHandler(defaultsTmpl)
+	offerHandler := handlers.NewOffersHandler(db, offersTmpl, handlerTimeout)
 	r := router.New(ipRepo, sessionRepo, authHandler, defaultHandler, offerHandler)
 
 	server := &http.Server{

@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/grzegab/wok/internal/app"
+	"github.com/grzegab/wok/internal/handlers"
 )
 
 type sessionValidator interface {
@@ -15,7 +15,7 @@ type sessionValidator interface {
 func RequireLogin(sessionRepo sessionValidator) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			cookie, err := r.Cookie(app.SessionCookieName)
+			cookie, err := r.Cookie(handlers.SessionCookieName)
 			if err != nil {
 				http.NotFound(w, r)
 				return
