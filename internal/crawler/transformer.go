@@ -2,7 +2,6 @@ package crawler
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"strings"
 	"time"
@@ -30,7 +29,7 @@ func (ot *OfferTransformer) Transform(ctx context.Context, ch <-chan []string) {
 
 	for urls := range ch {
 		for i, url := range urls {
-			fmt.Printf("[%d/%d] Scraping: %s\n", i+1, len(urls), url)
+			log.Printf("[%d/%d] Scraping: %s\n", i+1, len(urls), url)
 			// Be polite to the server with a short pause between requests
 			baseSecond := 65 * time.Second
 			randSecond := time.Second * time.Duration(time.Now().UnixNano()%60)
@@ -82,7 +81,7 @@ func (ot *OfferTransformer) Transform(ctx context.Context, ch <-chan []string) {
 			)
 
 			if err != nil {
-				fmt.Printf("Failed to scrape %s: %v\n", url, err)
+				log.Printf("Failed to scrape %s: %v\n", url, err)
 				continue
 			}
 
