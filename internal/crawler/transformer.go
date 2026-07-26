@@ -104,6 +104,8 @@ func (ot *OfferTransformer) Transform(ctx context.Context, ch <-chan []string) {
 			time.Sleep(baseSecond + randSecond)
 		}
 	}
+
+	close(ot.Offers)
 }
 
 func optText(s string) pgtype.Text {
