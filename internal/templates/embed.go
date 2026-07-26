@@ -4,7 +4,7 @@ import "embed"
 
 // FS holds every server-rendered template. Layout/auth partials live in
 // partials/, and each system area has its own directory (offers/, stats/,
-// and later cv/, scraped/). When a directory gets its first *.gohtml file,
+// scraped/, and later cv/). When a directory gets its first *.gohtml file,
 // add its glob both here and to the template.ParseFS call in cmd/web/main.go.
 
 //go:embed offers/*.gohtml partials/*.gohtml
@@ -18,6 +18,9 @@ var Auth embed.FS
 
 //go:embed stats/*.gohtml partials/*.gohtml
 var Stats embed.FS
+
+//go:embed scraped/*.gohtml partials/*.gohtml
+var Scraped embed.FS
 
 //go:embed assets/*
 var Assets embed.FS

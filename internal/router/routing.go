@@ -57,7 +57,7 @@ type SessionRepository interface {
 	sessionValidator
 }
 
-func New(ipRepo IpRepository, sessionRepo SessionRepository, authHdlr *handlers.AuthHandler, defaultHndl *handlers.DefaultHandler, offers handlers.IOffersHandler, stats handlers.IStatsHandler) *Router {
+func New(ipRepo IpRepository, sessionRepo SessionRepository, authHdlr *handlers.AuthHandler, defaultHndl *handlers.DefaultHandler, offers handlers.IOffersHandler, stats handlers.IStatsHandler, scraped handlers.IScrapedHandler) *Router {
 	r := chi.NewRouter()
 	r.Use(middleware.ClientIPFromRemoteAddr)
 	r.Use(CheckIP(ipRepo))
@@ -99,6 +99,7 @@ func New(ipRepo IpRepository, sessionRepo SessionRepository, authHdlr *handlers.
 		pr.Post("/upd4te/{id}", offers.Update)
 		pr.Get("/1nf0/{id}", offers.Info)
 		pr.Get("/st4ts", stats.Stats)
+		pr.Get("/scr4p3d", scraped.List)
 	})
 
 	// Ban most important GET

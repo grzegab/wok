@@ -91,6 +91,12 @@ func main() {
 		panic("Templates missing")
 	}
 
+	scrapedTmpl, err := template.ParseFS(templates.Scraped, "*/*.gohtml")
+	if err != nil {
+		log.Printf("could not parse scraped templates: %v", err)
+		panic("Templates missing")
+	}
+
 	// Init sentry (for logging errors on prod)
 	err = sentry.Init(sentry.ClientOptions{
 		Dsn: conf.SentryDsn,
@@ -107,7 +113,8 @@ func main() {
 	defaultHandler := handlers.NewDefaultHandler(defaultsTmpl)
 	offerHandler := handlers.NewOffersHandler(db, offersTmpl, handlerTimeout)
 	statsHandler := handlers.NewStatsHandler(db, statsTmpl, handlerTimeout)
-	r := router.New(ipRepo, sessionRepo, authHandler, defaultHandler, offerHandler, statsHandler)
+	scrapedHandler := handlers.NewScrapedHandler(db, scrapedTmpl, handlerTimeout)
+	r := router.New(ipRepo, sessionRepo, authHandler, defaultHandler, offerHandler, statsHandler, scrapedHandler)
 
 	server := &http.Server{
 		Addr:              conf.WebAddr,

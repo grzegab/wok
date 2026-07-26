@@ -93,11 +93,28 @@ func testStatsTemplate(t *testing.T) *template.Template {
 	return tmpl
 }
 
+func testScrapedTemplate(t *testing.T) *template.Template {
+	t.Helper()
+	tmpl, err := template.ParseFS(templates.Scraped, "*/*.gohtml")
+	if err != nil {
+		t.Fatalf("could not parse scraped templates: %v", err)
+	}
+	return tmpl
+}
+
 // fakePossibilityStatsStore is an in-memory handlers.PossibilityStatsStore
 // used to exercise the stats route without a real database.
 type fakePossibilityStatsStore struct{}
 
 func (s *fakePossibilityStatsStore) StatsPossibility(_ context.Context) ([]database.StatsPossibilityRow, error) {
+	return nil, nil
+}
+
+// fakePossibilityStore is an in-memory handlers.PossibilityStore used to
+// exercise the scraped offers route without a real database.
+type fakePossibilityStore struct{}
+
+func (s *fakePossibilityStore) ListPossibilities(_ context.Context) ([]database.Possibility, error) {
 	return nil, nil
 }
 
@@ -109,8 +126,9 @@ func newTestRouter(t *testing.T, conf *config.Config, sessionRepo SessionReposit
 	defaultHdlr := handlers.NewDefaultHandler(testDefaultsTemplate(t))
 	offersHdlr := handlers.NewOffersHandler(store, testOffersTemplate(t), 5*time.Second)
 	statsHdlr := handlers.NewStatsHandler(&fakePossibilityStatsStore{}, testStatsTemplate(t), 5*time.Second)
+	scrapedHdlr := handlers.NewScrapedHandler(&fakePossibilityStore{}, testScrapedTemplate(t), 5*time.Second)
 
-	return New(ipRepo, sessionRepo, authHdlr, defaultHdlr, offersHdlr, statsHdlr)
+	return New(ipRepo, sessionRepo, authHdlr, defaultHdlr, offersHdlr, statsHdlr, scrapedHdlr)
 }
 
 // TestRouting_LoginNotInterceptedByCatchAllBan guards the Chi routing
