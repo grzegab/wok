@@ -132,7 +132,6 @@ func setFlash(w http.ResponseWriter, msg string) {
 		Path:     "/",
 		MaxAge:   60,
 		HttpOnly: true,
-		Secure:   true,
 		SameSite: http.SameSiteStrictMode,
 	})
 }
@@ -148,7 +147,6 @@ func popFlash(w http.ResponseWriter, r *http.Request) string {
 		Path:     "/",
 		MaxAge:   -1,
 		HttpOnly: true,
-		Secure:   true,
 		SameSite: http.SameSiteStrictMode,
 	})
 
