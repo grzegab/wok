@@ -25,7 +25,7 @@ func NewOfferTransformer() *OfferTransformer {
 }
 
 func (ot *OfferTransformer) Transform(ctx context.Context, ch <-chan []string) {
-	ctx, cancel := chromedp.NewContext(ctx)
+	ctx, cancel := newBrowserContext(ctx)
 	defer cancel()
 
 	for urls := range ch {
