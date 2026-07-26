@@ -18,3 +18,17 @@ CREATE TABLE applications (
     created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE TABLE possibilities (
+    id BIGSERIAL PRIMARY KEY,
+    url TEXT NOT NULL,
+    category TEXT NOT NULL,
+    company_name TEXT NOT NULL,
+    job_title TEXT NOT NULL,
+    location TEXT,
+    is_remote BOOLEAN NOT NULL DEFAULT false,
+    tech TEXT,
+    description TEXT,
+    posted_at TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);

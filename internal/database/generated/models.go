@@ -73,3 +73,17 @@ type Application struct {
 	CreatedAt       pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
 }
+
+type Possibility struct {
+	ID          int64              `json:"id"`
+	Url         string             `json:"url"`
+	Category    string             `json:"category"`
+	CompanyName string             `json:"company_name"`
+	JobTitle    string             `json:"job_title"`
+	Location    pgtype.Text        `json:"location"`
+	IsRemote    bool               `json:"is_remote"`
+	Tech        pgtype.Text        `json:"tech"`
+	Description pgtype.Text        `json:"description"`
+	PostedAt    pgtype.Text        `json:"posted_at"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+}

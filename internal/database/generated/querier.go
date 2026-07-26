@@ -9,10 +9,14 @@ import (
 )
 
 type Querier interface {
+	CheckPossibility(ctx context.Context, url string) (string, error)
 	CreateApplication(ctx context.Context, arg CreateApplicationParams) (Application, error)
+	CreatePossibility(ctx context.Context, arg CreatePossibilityParams) (Possibility, error)
 	DeleteApplication(ctx context.Context, id int64) error
 	GetApplication(ctx context.Context, id int64) (Application, error)
+	GetPossibility(ctx context.Context, id int64) (Possibility, error)
 	ListApplications(ctx context.Context) ([]Application, error)
+	ListPossibilities(ctx context.Context) ([]Possibility, error)
 	UpdateApplication(ctx context.Context, arg UpdateApplicationParams) (Application, error)
 }
 
