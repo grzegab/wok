@@ -104,3 +104,6 @@ go.work.sum
 # env file
 .env
 
+# database backups
+/backups/
+
