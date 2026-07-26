@@ -52,7 +52,7 @@ func (ot *OfferTransformer) Transform(ctx context.Context, ch <-chan []string) {
 					&location,
 					chromedp.BySearch,
 				),
-				chromedp.InnerHTML(
+				chromedp.Text(
 					`//h3[normalize-space()='Job description']/following-sibling::div`,
 					&description,
 					chromedp.BySearch,
