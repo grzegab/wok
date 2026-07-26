@@ -1,14 +1,10 @@
 services:
   redis:
     image: redis:latest
-    ports:
-      - "6379:6379"
     restart: always
 
   postgres:
     image: postgres:17-alpine
-    ports:
-      - "5432:5432"
     restart: always
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-wok}
@@ -22,6 +18,45 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/web/Dockerfile
+    restart: always
+    ports:
+      - "80:80"
+    environment:
+      REDIS_ADDR: redis:6379
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-wok}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wok}
+      POSTGRES_DB: ${POSTGRES_DB:-wok}
+      WEB_ADDR: ${WEB_ADDR:-:80}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      LOGIN_USER: ${LOGIN_USER}
+      LOGIN_PASS_HASH: ${LOGIN_PASS_HASH}
+    depends_on:
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+
+  crawler:
+    build:
+      context: .
+      dockerfile: docker/crawler/Dockerfile
+    restart: always
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-wok}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wok}
+      POSTGRES_DB: ${POSTGRES_DB:-wok}
+    depends_on:
+      postgres:
+        condition: service_healthy
 
 volumes:
   postgres_data:

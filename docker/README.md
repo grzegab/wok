@@ -1,27 +1,57 @@
-# Project building instruction
+# Project building instructions
 
-This directory contains instructions for building the Docker image for the project.
+Each `cmd/*` binary has its own Dockerfile under `docker/<service>/Dockerfile`, built from
+the **project root** so it can access the whole module:
 
-## Building the image
+- `docker/web/Dockerfile` — the HTTP panel (`cmd/web`)
+- `docker/crawler/Dockerfile` — the job-offer crawler (`cmd/crawler`)
+- `docker/hashgen/Dockerfile` — one-off CLI to generate a bcrypt hash for `LOGIN_PASS_HASH` (`cmd/hashgen`)
 
-To build the Docker image, run the following command from the **project root directory**:
+## Running the full stack
 
-```bash
-docker build -t card-landing -f docker/Dockerfile .
-```
-
-## Running the container
-
-After building the image, you can run the application with:
+`docker-compose.yaml` at the project root wires up `redis`, `postgres`, `web` and `crawler`.
+Use the Makefile targets rather than calling `docker compose`/`docker build` directly:
 
 ```bash
-docker run -p 80:80 card-landing
+make up      # build + start the whole stack in the background
+make down    # stop the stack
+make logs    # follow logs for all services
+make build   # (re)build images without starting
 ```
+
+Only the `web` service publishes a port to the host (`80`), for logging into the panel.
+`redis` and `postgres` are reachable only from other containers on the compose network —
+there is no way to reach them from outside the VPS.
+
+## Generating a login password hash
+
+`hashgen` isn't part of the always-on stack (it's an interactive one-off), so it's run directly:
+
+```bash
+make hashgen
+```
+
+## Database backup / restore / reset
+
+Since Postgres isn't reachable from the host, these all run through `docker compose exec`
+against the running `postgres` container:
+
+```bash
+make db-backup                          # dump to backups/wok_<timestamp>.sql
+make db-restore FILE=backups/wok_20260101_120000.sql   # restore a dump
+make db-reset                           # wipe all data, re-apply schema.sql
+```
+
+`backups/` lives at the project root (gitignored) and is created on first use.
+`db-reset` drops and recreates the `public` schema, then re-runs
+`internal/database/schema.sql` (already mounted into the container as its init script) —
+this is a destructive operation, take a `make db-backup` first if you need the data.
 
 ## Technical details
 
-The `Dockerfile` is divided into two stages:
-1. **Builder stage:** Uses the `golang:1.26-alpine` image to compile the source code into a static Linux binary.
-2. **Final stage:** Uses the lightweight `alpine:latest` image, to which the ready binary and necessary resources (HTML templates, static files) are copied.
+Every Dockerfile follows the same two-stage pattern:
+1. **Builder stage:** `golang:1.26-alpine`, compiles a static Linux binary (`CGO_ENABLED=0`).
+2. **Final stage:** `alpine:latest` with just the binary (and, for the crawler, Chromium —
+   it drives a headless browser via `chromedp`), running as a non-root user.
 
-This makes the final image small and secure.
+This keeps the final images small and reduces attack surface.
