@@ -122,10 +122,10 @@ func (q *Queries) ListPossibilities(ctx context.Context) ([]Possibility, error) 
 
 const statsPossibility = `-- name: StatsPossibility :many
 SELECT
-    trim(tech) AS technology,
+    trim(t) AS technology,
     COUNT(*)
 FROM possibilities,
-     LATERAL unnest(string_to_array(tech, ',')) AS tech
+     LATERAL unnest(string_to_array(tech, ',')) AS t
 GROUP BY technology
 ORDER BY COUNT(*) DESC
 `
