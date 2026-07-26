@@ -35,12 +35,13 @@ func (op *OfferPersist) persistOne(c database.CreatePossibilityParams) {
 	defer cancel()
 
 	idx, err := op.offerStore.CreatePossibility(ctx, c)
-	switch {
-	case errors.Is(err, pgx.ErrNoRows):
+	if errors.Is(err, pgx.ErrNoRows) {
 		log.Printf("%s exists, skipping ...\n", c.Url)
-	case err != nil:
-		log.Printf("Error creating possibility: %v\n", err)
-	default:
-		log.Printf("Created possibility: %d\n", idx.ID)
+		return
 	}
+	if err != nil {
+		log.Printf("Error creating possibility: %v\n", err)
+		return
+	}
+	log.Printf("Created possibility: %d\n", idx.ID)
 }

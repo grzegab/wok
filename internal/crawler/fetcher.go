@@ -41,7 +41,7 @@ func (of *OfferFetcher) Fetch(ctx context.Context) {
 	ticker := time.NewTicker(tickTime)
 	defer ticker.Stop()
 
-	log.Println("Checking web every ", tickTime)
+	log.Printf("Checking web every %s\n", tickTime)
 
 	of.FetchedUrls <- of.getUrls(browserCtx)
 
@@ -93,53 +93,7 @@ func (of *OfferFetcher) scrapeOnce(ctx context.Context) ([]string, error) {
 	err := chromedp.Run(ctx,
 		chromedp.Navigate(of.Url),
 		chromedp.ActionFunc(func(ctx context.Context) error {
-			// The offer list is virtualized (offer-card nodes are mounted/
-			// unmounted as you scroll), so document.body.scrollHeight never
-			// grows. We have to collect hrefs after every scroll step
-			// instead of waiting for the page to "grow", and stop once
-			// window.scrollY itself stops advancing.
-			collect := func() error {
-				var links []*cdp.Node
-				if err := chromedp.Nodes(".offer-card", &links, chromedp.ByQueryAll, chromedp.AtLeast(0)).Do(ctx); err != nil {
-					return err
-				}
-				for _, node := range links {
-					if href, ok := node.Attribute("href"); ok {
-						seen[href] = struct{}{}
-					}
-				}
-				return nil
-			}
-
-			log.Println("Start scrolling...")
-
-			if err := collect(); err != nil {
-				return err
-			}
-
-			var lastScrollY, scrollY int64
-			for {
-				if err := chromedp.Evaluate(`window.scrollBy(0, window.innerHeight)`, nil).Do(ctx); err != nil {
-					return err
-				}
-
-				time.Sleep(scrollStepDelay)
-
-				if err := collect(); err != nil {
-					return err
-				}
-
-				if err := chromedp.Evaluate(`window.scrollY`, &scrollY).Do(ctx); err != nil {
-					return err
-				}
-
-				if scrollY == lastScrollY {
-					log.Println("Reached the bottom of the infinite scroll.")
-					break
-				}
-				lastScrollY = scrollY
-			}
-			return nil
+			return of.scrollAndCollectLinks(ctx, seen)
 		}),
 	)
 
@@ -153,4 +107,57 @@ func (of *OfferFetcher) scrapeOnce(ctx context.Context) ([]string, error) {
 	}
 
 	return urlsToScrape, nil
+}
+
+// scrollAndCollectLinks scrolls the page to the bottom, collecting offer-card
+// hrefs into seen along the way. The offer list is virtualized (offer-card
+// nodes are mounted/unmounted as you scroll), so document.body.scrollHeight
+// never grows. We have to collect hrefs after every scroll step instead of
+// waiting for the page to "grow", and stop once window.scrollY itself stops
+// advancing.
+func (of *OfferFetcher) scrollAndCollectLinks(ctx context.Context, seen map[string]struct{}) error {
+	log.Println("Start scrolling...")
+
+	if err := collectOfferLinks(ctx, seen); err != nil {
+		return err
+	}
+
+	var lastScrollY, scrollY int64
+	for {
+		if err := chromedp.Evaluate(`window.scrollBy(0, window.innerHeight)`, nil).Do(ctx); err != nil {
+			return err
+		}
+
+		time.Sleep(scrollStepDelay)
+
+		if err := collectOfferLinks(ctx, seen); err != nil {
+			return err
+		}
+
+		if err := chromedp.Evaluate(`window.scrollY`, &scrollY).Do(ctx); err != nil {
+			return err
+		}
+
+		if scrollY == lastScrollY {
+			log.Println("Reached the bottom of the infinite scroll.")
+			break
+		}
+		lastScrollY = scrollY
+	}
+	return nil
+}
+
+// collectOfferLinks reads the hrefs of the currently mounted offer-card
+// nodes into seen.
+func collectOfferLinks(ctx context.Context, seen map[string]struct{}) error {
+	var links []*cdp.Node
+	if err := chromedp.Nodes(".offer-card", &links, chromedp.ByQueryAll, chromedp.AtLeast(0)).Do(ctx); err != nil {
+		return err
+	}
+	for _, node := range links {
+		if href, ok := node.Attribute("href"); ok {
+			seen[href] = struct{}{}
+		}
+	}
+	return nil
 }
