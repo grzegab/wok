@@ -119,3 +119,38 @@ func (q *Queries) ListPossibilities(ctx context.Context) ([]Possibility, error) 
 	}
 	return items, nil
 }
+
+const statsPossibility = `-- name: StatsPossibility :many
+SELECT
+    trim(tech) AS technology,
+    COUNT(*)
+FROM possibilities,
+     LATERAL unnest(string_to_array(tech, ',')) AS tech
+GROUP BY technology
+ORDER BY COUNT(*) DESC
+`
+
+type StatsPossibilityRow struct {
+	Technology string `json:"technology"`
+	Count      int64  `json:"count"`
+}
+
+func (q *Queries) StatsPossibility(ctx context.Context) ([]StatsPossibilityRow, error) {
+	rows, err := q.db.Query(ctx, statsPossibility)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []StatsPossibilityRow
+	for rows.Next() {
+		var i StatsPossibilityRow
+		if err := rows.Scan(&i.Technology, &i.Count); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

@@ -12,3 +12,11 @@ $1, $2, $3, $4, $5, $6, $7, $8, $9
 ) ON CONFLICT (url) DO NOTHING
 RETURNING *;
 
+-- name: StatsPossibility :many
+SELECT
+    trim(tech) AS technology,
+    COUNT(*)
+FROM possibilities,
+     LATERAL unnest(string_to_array(tech, ',')) AS tech
+GROUP BY technology
+ORDER BY COUNT(*) DESC;

@@ -84,6 +84,23 @@ func testAuthTemplate(t *testing.T) *template.Template {
 	return tmpl
 }
 
+func testStatsTemplate(t *testing.T) *template.Template {
+	t.Helper()
+	tmpl, err := template.ParseFS(templates.Stats, "*/*.gohtml")
+	if err != nil {
+		t.Fatalf("could not parse stats templates: %v", err)
+	}
+	return tmpl
+}
+
+// fakePossibilityStatsStore is an in-memory handlers.PossibilityStatsStore
+// used to exercise the stats route without a real database.
+type fakePossibilityStatsStore struct{}
+
+func (s *fakePossibilityStatsStore) StatsPossibility(_ context.Context) ([]database.StatsPossibilityRow, error) {
+	return nil, nil
+}
+
 func newTestRouter(t *testing.T, conf *config.Config, sessionRepo SessionRepository, store *fakeApplicationStore) *Router {
 	t.Helper()
 
@@ -91,8 +108,9 @@ func newTestRouter(t *testing.T, conf *config.Config, sessionRepo SessionReposit
 	authHdlr := handlers.NewAuthHandler(sessionRepo, conf, testAuthTemplate(t))
 	defaultHdlr := handlers.NewDefaultHandler(testDefaultsTemplate(t))
 	offersHdlr := handlers.NewOffersHandler(store, testOffersTemplate(t), 5*time.Second)
+	statsHdlr := handlers.NewStatsHandler(&fakePossibilityStatsStore{}, testStatsTemplate(t), 5*time.Second)
 
-	return New(ipRepo, sessionRepo, authHdlr, defaultHdlr, offersHdlr)
+	return New(ipRepo, sessionRepo, authHdlr, defaultHdlr, offersHdlr, statsHdlr)
 }
 
 // TestRouting_LoginNotInterceptedByCatchAllBan guards the Chi routing

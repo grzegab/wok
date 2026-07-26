@@ -1,0 +1,35 @@
+{{ define "stats/stats" }}
+
+{{ template "head" }}
+{{ template "header" }}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">Technology stats</h1>
+</div>
+
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-striped table-hover align-middle mb-0">
+            <thead class="table-light">
+            <tr>
+                <th>Technology</th>
+                <th class="text-end">Occurrences</th>
+            </tr>
+            </thead>
+            <tbody>
+            {{ range .Technologies }}
+            <tr>
+                <td class="fw-medium">{{ .Technology }}</td>
+                <td class="text-end">{{ .Count }}</td>
+            </tr>
+            {{ else }}
+            <tr>
+                <td colspan="2" class="text-center text-muted py-5">No data yet.</td>
+            </tr>
+            {{ end }}
+            </tbody>
+        </table>
+    </div>
+</div>
+{{ template "footer" }}
+{{ end }}
