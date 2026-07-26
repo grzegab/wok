@@ -11,23 +11,13 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const checkPossibility = `-- name: CheckPossibility :one
-SELECT url FROM possibilities WHERE url = $1 LIMIT 1
-`
-
-func (q *Queries) CheckPossibility(ctx context.Context, url string) (string, error) {
-	row := q.db.QueryRow(ctx, checkPossibility, url)
-	var url_2 string
-	err := row.Scan(&url_2)
-	return url_2, err
-}
-
 const createPossibility = `-- name: CreatePossibility :one
 INSERT INTO possibilities (
 category, url, company_name, job_title, location, is_remote, tech, description, posted_at
 ) VALUES (
 $1, $2, $3, $4, $5, $6, $7, $8, $9
-) RETURNING id, url, category, company_name, job_title, location, is_remote, tech, description, posted_at, created_at
+) ON CONFLICT (url) DO NOTHING
+RETURNING id, url, category, company_name, job_title, location, is_remote, tech, description, posted_at, created_at
 `
 
 type CreatePossibilityParams struct {

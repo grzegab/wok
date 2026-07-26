@@ -11,7 +11,6 @@ import (
 )
 
 type OfferStore interface {
-	CheckPossibility(ctx context.Context, url string) (string, error)
 	CreatePossibility(ctx context.Context, arg database.CreatePossibilityParams) (database.Possibility, error)
 }
 
@@ -35,19 +34,13 @@ func (op *OfferPersist) persistOne(c database.CreatePossibilityParams) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	// check if exists -> url
-	_, err := op.offerStore.CheckPossibility(ctx, c.Url)
+	idx, err := op.offerStore.CreatePossibility(ctx, c)
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
-		idx, err := op.offerStore.CreatePossibility(ctx, c)
-		if err != nil {
-			log.Printf("Error creating possibility: %v\n", err)
-			return
-		}
-		log.Printf("Created possibility: %d\n", idx.ID)
-	case err != nil:
-		log.Printf("Error checking possibility: %v\n", err)
-	default:
 		log.Printf("%s exists, skipping ...\n", c.Url)
+	case err != nil:
+		log.Printf("Error creating possibility: %v\n", err)
+	default:
+		log.Printf("Created possibility: %d\n", idx.ID)
 	}
 }

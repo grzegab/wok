@@ -21,7 +21,7 @@ CREATE TABLE applications (
 
 CREATE TABLE possibilities (
     id BIGSERIAL PRIMARY KEY,
-    url TEXT NOT NULL,
+    url TEXT NOT NULL UNIQUE,
     category TEXT NOT NULL,
     company_name TEXT NOT NULL,
     job_title TEXT NOT NULL,
