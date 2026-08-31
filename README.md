@@ -27,3 +27,13 @@ As this application will be placed on production with globasl access IP blocking
 
 ## Tech stack
 Application written in Go, with frontend in gohtml. Database simple noSQL for keeping information about company.
+
+
+## Roadmap
+
+
+
+
+
+7. stats + view dla pobranych
+9. the protocol scrapper

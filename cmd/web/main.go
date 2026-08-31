@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"html/template"
 	"log"
 	"net/http"
 	"os"
@@ -67,31 +66,31 @@ func main() {
 		defer pgPool.Close()
 	}
 
-	offersTmpl, err := template.ParseFS(templates.Offers, "*/*.gohtml")
+	offersTmpl, err := templates.Parse(templates.Offers)
 	if err != nil {
 		log.Printf("could not parse offers templates: %v", err)
 		panic("Templates missing")
 	}
 
-	defaultsTmpl, err := template.ParseFS(templates.Defaults, "*/*.gohtml")
+	defaultsTmpl, err := templates.Parse(templates.Defaults)
 	if err != nil {
 		log.Printf("could not parse defaults templates: %v", err)
 		panic("Templates missing")
 	}
 
-	authTmpl, err := template.ParseFS(templates.Auth, "*/*.gohtml")
+	authTmpl, err := templates.Parse(templates.Auth)
 	if err != nil {
 		log.Printf("could not parse auth templates: %v", err)
 		panic("Templates missing")
 	}
 
-	statsTmpl, err := template.ParseFS(templates.Stats, "*/*.gohtml")
+	statsTmpl, err := templates.Parse(templates.Stats)
 	if err != nil {
 		log.Printf("could not parse stats templates: %v", err)
 		panic("Templates missing")
 	}
 
-	scrapedTmpl, err := template.ParseFS(templates.Scraped, "*/*.gohtml")
+	scrapedTmpl, err := templates.Parse(templates.Scraped)
 	if err != nil {
 		log.Printf("could not parse scraped templates: %v", err)
 		panic("Templates missing")

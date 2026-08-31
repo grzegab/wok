@@ -7,6 +7,7 @@ import (
 
 	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/chromedp"
+	"github.com/grzegab/wok/internal/category"
 )
 
 const visibleOffers = 100
@@ -15,17 +16,22 @@ const scrollStepDelay = 1 * time.Second
 const maxFetchAttempts = 3
 const fetchRetryBaseDelay = 2 * time.Second
 
-type OfferFetcher struct {
-	Url         string
-	Type        string
-	FetchedUrls chan []string
+// FetchedOffers carries the offer links found for a single category, so the
+// transformer knows which category the offers it scrapes belong to.
+type FetchedOffers struct {
+	Category string
+	Urls     []string
 }
 
-func NewOfferFetcher(url string) *OfferFetcher {
+type OfferFetcher struct {
+	categories  []category.Category
+	FetchedUrls chan FetchedOffers
+}
+
+func NewOfferFetcher(categories []category.Category) *OfferFetcher {
 	of := OfferFetcher{
-		Url:         url,
-		Type:        "Go",
-		FetchedUrls: make(chan []string, visibleOffers),
+		categories:  categories,
+		FetchedUrls: make(chan FetchedOffers, visibleOffers),
 	}
 
 	return &of
@@ -43,7 +49,7 @@ func (of *OfferFetcher) Fetch(ctx context.Context) {
 
 	log.Printf("Checking web every %s\n", tickTime)
 
-	of.FetchedUrls <- of.getUrls(browserCtx)
+	of.fetchAll(browserCtx)
 
 	for {
 		select {
@@ -51,16 +57,25 @@ func (of *OfferFetcher) Fetch(ctx context.Context) {
 			close(of.FetchedUrls)
 			return
 		case <-ticker.C:
-			of.FetchedUrls <- of.getUrls(browserCtx)
+			of.fetchAll(browserCtx)
 		}
 	}
 }
 
-func (of *OfferFetcher) getUrls(ctx context.Context) []string {
+// fetchAll collects the offer links of every configured category, one
+// category at a time so a single browser context is enough.
+func (of *OfferFetcher) fetchAll(ctx context.Context) {
+	for _, cat := range of.categories {
+		log.Printf("Crawling %s offers at %s ...\n", cat.Name, cat.ScrapeURL)
+		of.FetchedUrls <- FetchedOffers{Category: cat.Name, Urls: of.getUrls(ctx, cat.ScrapeURL)}
+	}
+}
+
+func (of *OfferFetcher) getUrls(ctx context.Context, url string) []string {
 	var urlsToScrape []string
 
 	for attempt := 1; attempt <= maxFetchAttempts; attempt++ {
-		urls, err := of.scrapeOnce(ctx)
+		urls, err := of.scrapeOnce(ctx, url)
 		if err == nil {
 			urlsToScrape = urls
 			break
@@ -81,7 +96,7 @@ func (of *OfferFetcher) getUrls(ctx context.Context) []string {
 	return urlsToScrape
 }
 
-func (of *OfferFetcher) scrapeOnce(ctx context.Context) ([]string, error) {
+func (of *OfferFetcher) scrapeOnce(ctx context.Context, url string) ([]string, error) {
 	// Set a global 3-minute timeout so the script doesn't run forever
 	ctx, cancelTimeout := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancelTimeout()
@@ -91,7 +106,7 @@ func (of *OfferFetcher) scrapeOnce(ctx context.Context) ([]string, error) {
 	log.Println("Navigating to target page...")
 
 	err := chromedp.Run(ctx,
-		chromedp.Navigate(of.Url),
+		chromedp.Navigate(url),
 		chromedp.ActionFunc(func(ctx context.Context) error {
 			return of.scrollAndCollectLinks(ctx, seen)
 		}),

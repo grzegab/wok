@@ -84,12 +84,12 @@ func (q *Queries) GetPossibility(ctx context.Context, id int64) (Possibility, er
 	return i, err
 }
 
-const listPossibilities = `-- name: ListPossibilities :many
-SELECT id, url, category, company_name, job_title, location, is_remote, tech, description, posted_at, created_at FROM possibilities ORDER BY created_at DESC
+const listPossibilitiesByCategory = `-- name: ListPossibilitiesByCategory :many
+SELECT id, url, category, company_name, job_title, location, is_remote, tech, description, posted_at, created_at FROM possibilities WHERE category = $1 ORDER BY created_at DESC, id DESC
 `
 
-func (q *Queries) ListPossibilities(ctx context.Context) ([]Possibility, error) {
-	rows, err := q.db.Query(ctx, listPossibilities)
+func (q *Queries) ListPossibilitiesByCategory(ctx context.Context, category string) ([]Possibility, error) {
+	rows, err := q.db.Query(ctx, listPossibilitiesByCategory, category)
 	if err != nil {
 		return nil, err
 	}
@@ -120,30 +120,31 @@ func (q *Queries) ListPossibilities(ctx context.Context) ([]Possibility, error) 
 	return items, nil
 }
 
-const statsPossibility = `-- name: StatsPossibility :many
+const statsPossibilityByCategory = `-- name: StatsPossibilityByCategory :many
 SELECT
     trim(t) AS technology,
     COUNT(*)
 FROM possibilities,
      LATERAL unnest(string_to_array(tech, ',')) AS t
+WHERE category = $1
 GROUP BY technology
 ORDER BY COUNT(*) DESC
 `
 
-type StatsPossibilityRow struct {
+type StatsPossibilityByCategoryRow struct {
 	Technology string `json:"technology"`
 	Count      int64  `json:"count"`
 }
 
-func (q *Queries) StatsPossibility(ctx context.Context) ([]StatsPossibilityRow, error) {
-	rows, err := q.db.Query(ctx, statsPossibility)
+func (q *Queries) StatsPossibilityByCategory(ctx context.Context, category string) ([]StatsPossibilityByCategoryRow, error) {
+	rows, err := q.db.Query(ctx, statsPossibilityByCategory, category)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []StatsPossibilityRow
+	var items []StatsPossibilityByCategoryRow
 	for rows.Next() {
-		var i StatsPossibilityRow
+		var i StatsPossibilityByCategoryRow
 		if err := rows.Scan(&i.Technology, &i.Count); err != nil {
 			return nil, err
 		}

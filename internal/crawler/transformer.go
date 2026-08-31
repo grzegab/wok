@@ -11,8 +11,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const category = "Go"
-
 type OfferTransformer struct {
 	Offers chan database.CreatePossibilityParams
 }
@@ -23,19 +21,19 @@ func NewOfferTransformer() *OfferTransformer {
 	}
 }
 
-func (ot *OfferTransformer) Transform(ctx context.Context, ch <-chan []string) {
+func (ot *OfferTransformer) Transform(ctx context.Context, ch <-chan FetchedOffers) {
 	ctx, cancel := newBrowserContext(ctx)
 	defer cancel()
 
-	for urls := range ch {
-		for i, url := range urls {
-			log.Printf("[%d/%d] Scraping: %s\n", i+1, len(urls), url)
+	for batch := range ch {
+		for i, url := range batch.Urls {
+			log.Printf("[%s %d/%d] Scraping: %s\n", batch.Category, i+1, len(batch.Urls), url)
 			// Be polite to the server with a short pause between requests
 			baseSecond := 65 * time.Second
 			randSecond := time.Second * time.Duration(time.Now().UnixNano()%60)
 			log.Printf("Sleeping for %s\n", baseSecond+randSecond)
 
-			offer, err := scrapeOffer(ctx, url)
+			offer, err := scrapeOffer(ctx, url, batch.Category)
 			if err != nil {
 				log.Printf("Failed to scrape %s: %v\n", url, err)
 				continue
@@ -55,7 +53,7 @@ func (ot *OfferTransformer) Transform(ctx context.Context, ch <-chan []string) {
 // to the current DOM structure of the target site (relative XPath from the
 // "Job description"/"Tech stack" headings) and are expected to silently stop
 // matching if the site is redesigned.
-func scrapeOffer(ctx context.Context, url string) (database.CreatePossibilityParams, error) {
+func scrapeOffer(ctx context.Context, url, category string) (database.CreatePossibilityParams, error) {
 	var jobTitle string
 	var companyName string
 	var description string

@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/grzegab/wok/internal/category"
 	"github.com/grzegab/wok/internal/config"
 	database "github.com/grzegab/wok/internal/database/generated"
 	"github.com/grzegab/wok/internal/handlers"
@@ -59,7 +60,7 @@ func (s *fakeApplicationStore) DeleteApplication(_ context.Context, id int64) er
 
 func testOffersTemplate(t *testing.T) *template.Template {
 	t.Helper()
-	tmpl, err := template.ParseFS(templates.Offers, "*/*.gohtml")
+	tmpl, err := templates.Parse(templates.Offers)
 	if err != nil {
 		t.Fatalf("could not parse offers templates: %v", err)
 	}
@@ -68,7 +69,7 @@ func testOffersTemplate(t *testing.T) *template.Template {
 
 func testDefaultsTemplate(t *testing.T) *template.Template {
 	t.Helper()
-	tmpl, err := template.ParseFS(templates.Defaults, "*/*.gohtml")
+	tmpl, err := templates.Parse(templates.Defaults)
 	if err != nil {
 		t.Fatalf("could not parse defaults templates: %v", err)
 	}
@@ -77,7 +78,7 @@ func testDefaultsTemplate(t *testing.T) *template.Template {
 
 func testAuthTemplate(t *testing.T) *template.Template {
 	t.Helper()
-	tmpl, err := template.ParseFS(templates.Auth, "*/*.gohtml")
+	tmpl, err := templates.Parse(templates.Auth)
 	if err != nil {
 		t.Fatalf("could not parse auth templates: %v", err)
 	}
@@ -86,7 +87,7 @@ func testAuthTemplate(t *testing.T) *template.Template {
 
 func testStatsTemplate(t *testing.T) *template.Template {
 	t.Helper()
-	tmpl, err := template.ParseFS(templates.Stats, "*/*.gohtml")
+	tmpl, err := templates.Parse(templates.Stats)
 	if err != nil {
 		t.Fatalf("could not parse stats templates: %v", err)
 	}
@@ -95,7 +96,7 @@ func testStatsTemplate(t *testing.T) *template.Template {
 
 func testScrapedTemplate(t *testing.T) *template.Template {
 	t.Helper()
-	tmpl, err := template.ParseFS(templates.Scraped, "*/*.gohtml")
+	tmpl, err := templates.Parse(templates.Scraped)
 	if err != nil {
 		t.Fatalf("could not parse scraped templates: %v", err)
 	}
@@ -106,7 +107,7 @@ func testScrapedTemplate(t *testing.T) *template.Template {
 // used to exercise the stats route without a real database.
 type fakePossibilityStatsStore struct{}
 
-func (s *fakePossibilityStatsStore) StatsPossibility(_ context.Context) ([]database.StatsPossibilityRow, error) {
+func (s *fakePossibilityStatsStore) StatsPossibilityByCategory(_ context.Context, _ string) ([]database.StatsPossibilityByCategoryRow, error) {
 	return nil, nil
 }
 
@@ -114,7 +115,7 @@ func (s *fakePossibilityStatsStore) StatsPossibility(_ context.Context) ([]datab
 // exercise the scraped offers route without a real database.
 type fakePossibilityStore struct{}
 
-func (s *fakePossibilityStore) ListPossibilities(_ context.Context) ([]database.Possibility, error) {
+func (s *fakePossibilityStore) ListPossibilitiesByCategory(_ context.Context, _ string) ([]database.Possibility, error) {
 	return nil, nil
 }
 
@@ -258,6 +259,41 @@ func TestRouting_OffersDetailAndEditRoutes(t *testing.T) {
 
 		if w.Code != http.StatusNotFound {
 			t.Fatalf("GET /1nf0/999 status = %d, want %d", w.Code, http.StatusNotFound)
+		}
+	})
+}
+
+// TestRouting_CategoryPages covers the per-category scraped and stats routes:
+// every menu category resolves, and an unknown slug is a 404.
+func TestRouting_CategoryPages(t *testing.T) {
+	sessionRepo := &fakeSessionRepository{valid: true}
+	r := newTestRouter(t, &config.Config{}, sessionRepo, newFakeApplicationStore())
+
+	for _, cat := range category.All {
+		for _, path := range []string{"/scr4p3d/" + cat.Slug, "/st4ts/" + cat.Slug} {
+			t.Run(path, func(t *testing.T) {
+				req := httptest.NewRequest(http.MethodGet, path, nil)
+				req.AddCookie(&http.Cookie{Name: handlers.SessionCookieName, Value: "valid-token"})
+				w := httptest.NewRecorder()
+
+				r.Mux().ServeHTTP(w, req)
+
+				if w.Code != http.StatusOK {
+					t.Fatalf("GET %s status = %d, want %d (body: %s)", path, w.Code, http.StatusOK, w.Body.String())
+				}
+			})
+		}
+	}
+
+	t.Run("unknown category returns 404", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/scr4p3d/cobol", nil)
+		req.AddCookie(&http.Cookie{Name: handlers.SessionCookieName, Value: "valid-token"})
+		w := httptest.NewRecorder()
+
+		r.Mux().ServeHTTP(w, req)
+
+		if w.Code != http.StatusNotFound {
+			t.Fatalf("GET /scr4p3d/cobol status = %d, want %d", w.Code, http.StatusNotFound)
 		}
 	})
 }

@@ -1,4 +1,4 @@
-.PHONY: up down build logs sqlc hashgen db-backup db-restore db-reset
+.PHONY: up down build logs sqlc hashgen deploy db-backup db-restore db-reset
 
 BACKUP_DIR := backups
 
@@ -23,6 +23,10 @@ sqlc:
 hashgen:
 	docker build -t wok-hashgen -f docker/hashgen/Dockerfile .
 	docker run --rm -it wok-hashgen
+
+# Full deploy on the VPS: backup, stop, git pull, rebuild, apply schema updates, start
+deploy:
+	./scripts/deploy.sh
 
 # Dump the Postgres database to a timestamped SQL file in backups/
 # --clean --if-exists makes the dump self-contained (drops objects before

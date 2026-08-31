@@ -1,8 +1,8 @@
 -- name: GetPossibility :one
 SELECT * FROM possibilities WHERE id = $1;
 
--- name: ListPossibilities :many
-SELECT * FROM possibilities ORDER BY created_at DESC;
+-- name: ListPossibilitiesByCategory :many
+SELECT * FROM possibilities WHERE category = $1 ORDER BY created_at DESC, id DESC;
 
 -- name: CreatePossibility :one
 INSERT INTO possibilities (
@@ -12,11 +12,12 @@ $1, $2, $3, $4, $5, $6, $7, $8, $9
 ) ON CONFLICT (url) DO NOTHING
 RETURNING *;
 
--- name: StatsPossibility :many
+-- name: StatsPossibilityByCategory :many
 SELECT
     trim(t) AS technology,
     COUNT(*)
 FROM possibilities,
      LATERAL unnest(string_to_array(tech, ',')) AS t
+WHERE category = $1
 GROUP BY technology
 ORDER BY COUNT(*) DESC;

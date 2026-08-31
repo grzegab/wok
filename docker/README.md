@@ -23,6 +23,20 @@ Only the `web` service publishes a port to the host (`80`), for logging into the
 `redis` and `postgres` are reachable only from other containers on the compose network —
 there is no way to reach them from outside the VPS.
 
+## Deploying on the VPS
+
+One command does the whole deploy — database backup, `docker compose down`, `git pull`,
+image rebuild, schema updates and start:
+
+```bash
+make deploy      # or ./scripts/deploy.sh
+```
+
+The schema updates step exists because `schema.sql` is only executed when Postgres
+initialises an empty data volume. Anything that has to reach an already-populated
+database (a new index, a new column) belongs in the idempotent SQL block inside
+`scripts/deploy.sh`, which runs on every deploy as the `wok` role.
+
 ## Generating a login password hash
 
 `hashgen` isn't part of the always-on stack (it's an interactive one-off), so it's run directly:

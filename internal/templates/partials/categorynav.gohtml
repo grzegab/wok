@@ -1,0 +1,11 @@
+{{ define "categorynav" }}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">{{ .Category.Name }}</h1>
+    <div class="btn-group">
+        <a class="btn btn-sm {{ if eq .Page "scraped" }}btn-secondary{{ else }}btn-outline-secondary{{ end }}"
+           href="/scr4p3d/{{ .Category.Slug }}">Scraped offers</a>
+        <a class="btn btn-sm {{ if eq .Page "stats" }}btn-secondary{{ else }}btn-outline-secondary{{ end }}"
+           href="/st4ts/{{ .Category.Slug }}">Stats</a>
+    </div>
+</div>
+{{ end }}

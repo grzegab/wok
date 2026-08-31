@@ -98,8 +98,8 @@ func New(ipRepo IpRepository, sessionRepo SessionRepository, authHdlr *handlers.
 		pr.Get("/upd4te/{id}", offers.ShowUpdateForm)
 		pr.Post("/upd4te/{id}", offers.Update)
 		pr.Get("/1nf0/{id}", offers.Info)
-		pr.Get("/st4ts", stats.Stats)
-		pr.Get("/scr4p3d", scraped.List)
+		pr.Get("/st4ts/{category}", stats.Stats)
+		pr.Get("/scr4p3d/{category}", scraped.List)
 	})
 
 	// Ban most important GET

@@ -7,11 +7,12 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/grzegab/wok/internal/category"
 	database "github.com/grzegab/wok/internal/database/generated"
 )
 
 type PossibilityStore interface {
-	ListPossibilities(ctx context.Context) ([]database.Possibility, error)
+	ListPossibilitiesByCategory(ctx context.Context, category string) ([]database.Possibility, error)
 }
 
 type IScrapedHandler interface {
@@ -31,6 +32,8 @@ type possibilityRow struct {
 }
 
 type scrapedPageData struct {
+	Page          string
+	Category      category.Category
 	Possibilities []possibilityRow
 }
 
@@ -39,12 +42,18 @@ func NewScrapedHandler(store PossibilityStore, tmpl *template.Template, timeout 
 }
 
 func (h *ScrapedHandler) List(w http.ResponseWriter, r *http.Request) {
+	cat, ok := requestCategory(r)
+	if !ok {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(r.Context(), h.timeout)
 	defer cancel()
 
-	possibilities, err := h.store.ListPossibilities(ctx)
+	possibilities, err := h.store.ListPossibilitiesByCategory(ctx, cat.Name)
 	if err != nil {
-		log.Printf("could not list possibilities: %v", err)
+		log.Printf("could not list possibilities for %s: %v", cat.Name, err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
@@ -60,7 +69,7 @@ func (h *ScrapedHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
-	data := scrapedPageData{Possibilities: rows}
+	data := scrapedPageData{Page: "scraped", Category: cat, Possibilities: rows}
 	if err := h.template.ExecuteTemplate(w, "scraped/list", data); err != nil {
 		log.Printf("could not execute scraped list template: %v", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)

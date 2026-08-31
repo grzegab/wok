@@ -2,9 +2,12 @@ package handlers
 
 import (
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/grzegab/wok/internal/category"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -70,4 +73,9 @@ func formatTimestamp(t pgtype.Timestamptz) string {
 		return "-"
 	}
 	return t.Time.Format("2006-01-02 15:04")
+}
+
+// requestCategory resolves the {category} URL slug to a known category.
+func requestCategory(r *http.Request) (category.Category, bool) {
+	return category.BySlug(chi.URLParam(r, "category"))
 }

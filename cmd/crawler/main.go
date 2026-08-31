@@ -8,6 +8,7 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/grzegab/wok/internal/category"
 	"github.com/grzegab/wok/internal/config"
 	"github.com/grzegab/wok/internal/crawler"
 	database "github.com/grzegab/wok/internal/database/generated"
@@ -36,12 +37,9 @@ func main() {
 	db := database.New(pgPool)
 
 	// start crawler
-	targetURL := "https://justjoin.it/job-offers/all-locations/go?orderBy=DESC&sortBy=newest"
-	log.Printf("Crawling %s ...\n", targetURL)
-
 	wg := sync.WaitGroup{}
 
-	cr := crawler.NewOfferFetcher(targetURL)
+	cr := crawler.NewOfferFetcher(category.All)
 	wg.Go(func() {
 		go cr.Fetch(ctx)
 	})

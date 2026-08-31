@@ -3,8 +3,9 @@
     <div class="container">
         <a class="navbar-brand fw-semibold" href="/l1st">WOK</a>
         <div class="d-flex align-items-center gap-2">
-            <a class="btn btn-outline-secondary btn-sm" href="/st4ts">Stats</a>
-            <a class="btn btn-outline-secondary btn-sm" href="/scr4p3d">Scraped</a>
+            {{ range categories }}
+            <a class="btn btn-outline-secondary btn-sm" href="/scr4p3d/{{ .Slug }}">{{ .Name }}</a>
+            {{ end }}
             <form method="POST" action="/l0g0ut">
                 <button type="submit" class="btn btn-outline-secondary btn-sm">Logout</button>
             </form>

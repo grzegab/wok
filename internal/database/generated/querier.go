@@ -15,8 +15,8 @@ type Querier interface {
 	GetApplication(ctx context.Context, id int64) (Application, error)
 	GetPossibility(ctx context.Context, id int64) (Possibility, error)
 	ListApplications(ctx context.Context) ([]Application, error)
-	ListPossibilities(ctx context.Context) ([]Possibility, error)
-	StatsPossibility(ctx context.Context) ([]StatsPossibilityRow, error)
+	ListPossibilitiesByCategory(ctx context.Context, category string) ([]Possibility, error)
+	StatsPossibilityByCategory(ctx context.Context, category string) ([]StatsPossibilityByCategoryRow, error)
 	UpdateApplication(ctx context.Context, arg UpdateApplicationParams) (Application, error)
 }
 
