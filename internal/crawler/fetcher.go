@@ -67,7 +67,16 @@ func (of *OfferFetcher) Fetch(ctx context.Context) {
 func (of *OfferFetcher) fetchAll(ctx context.Context) {
 	for _, cat := range of.categories {
 		log.Printf("Crawling %s offers at %s ...\n", cat.Name, cat.ScrapeURL)
-		of.FetchedUrls <- FetchedOffers{Category: cat.Name, Urls: of.getUrls(ctx, cat.ScrapeURL)}
+		offers := FetchedOffers{Category: cat.Name, Urls: of.getUrls(ctx, cat.ScrapeURL)}
+
+		// A blocking send would keep Fetch inside this loop once the buffer
+		// fills up, so it would never reach the ctx.Done() case that closes
+		// FetchedUrls and shutdown would stall.
+		select {
+		case of.FetchedUrls <- offers:
+		case <-ctx.Done():
+			return
+		}
 	}
 }
 

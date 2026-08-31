@@ -41,17 +41,17 @@ func main() {
 
 	cr := crawler.NewOfferFetcher(category.All)
 	wg.Go(func() {
-		go cr.Fetch(ctx)
+		cr.Fetch(ctx)
 	})
 
 	ot := crawler.NewOfferTransformer()
 	wg.Go(func() {
-		go ot.Transform(ctx, cr.FetchedUrls)
+		ot.Transform(ctx, cr.FetchedUrls)
 	})
 
 	op := crawler.NewOfferPersist(db)
 	wg.Go(func() {
-		go op.Persist(ot.Offers)
+		op.Persist(ot.Offers)
 	})
 
 	// graceful shutdown

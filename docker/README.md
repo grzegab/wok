@@ -32,6 +32,12 @@ image rebuild, schema updates and start:
 make deploy      # or ./scripts/deploy.sh
 ```
 
+Every docker call in the Makefile goes through `$(DOCKER)`, which defaults to plain
+`docker` for local use. `scripts/deploy.sh` sets and exports `DOCKER="sudo docker"`, so the
+targets it calls (`make db-backup`) run as root too; export `DOCKER=docker` before the
+deploy once the deploying user is in the `docker` group. To run a single target as root by
+hand: `make DOCKER="sudo docker" logs`.
+
 The schema updates step exists because `schema.sql` is only executed when Postgres
 initialises an empty data volume. Anything that has to reach an already-populated
 database (a new index, a new column) belongs in the idempotent SQL block inside

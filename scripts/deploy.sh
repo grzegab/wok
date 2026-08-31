@@ -5,36 +5,43 @@
 # and starts everything again.
 #
 # Run it from anywhere: ./scripts/deploy.sh (or `make deploy`).
+#
+# Docker on the VPS needs root, so every docker call - including the ones the
+# Makefile targets make - goes through $DOCKER. Export DOCKER=docker to drop
+# the sudo (e.g. once the deploying user is in the docker group).
 
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
+
+DOCKER="${DOCKER:-sudo docker}"
+export DOCKER
 
 step() {
     printf '\n==> %s\n' "$1"
 }
 
 step "Backing up the database"
-if sudo docker compose ps --status running --services | grep -qx postgres; then
+if $DOCKER compose ps --status running --services | grep -qx postgres; then
     make db-backup
 else
     echo "postgres is not running, skipping backup"
 fi
 
 step "Stopping the stack"
-sudo docker compose down
+$DOCKER compose down
 
 step "Pulling the new code"
 git pull --ff-only
 
 step "Rebuilding the images"
-sudo docker compose build
+$DOCKER compose build
 
 step "Starting postgres"
-docker compose up -d postgres
+$DOCKER compose up -d postgres
 
 echo "Waiting for postgres to accept connections..."
-until sudo docker compose exec -T postgres sh -c 'pg_isready -U "$POSTGRES_USER"' >/dev/null 2>&1; do
+until $DOCKER compose exec -T postgres sh -c 'pg_isready -U "$POSTGRES_USER"' >/dev/null 2>&1; do
     sleep 1
 done
 
@@ -45,7 +52,7 @@ done
 # reads from; running this as any other role would create objects in public,
 # where the app cannot see them.
 step "Applying schema updates"
-sudo docker compose exec -T postgres sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" "$POSTGRES_DB"' <<'SQL'
+$DOCKER compose exec -T postgres sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" "$POSTGRES_DB"' <<'SQL'
 CREATE INDEX IF NOT EXISTS possibilities_category_created_at_idx
     ON possibilities (category, created_at DESC, id DESC);
 
@@ -53,8 +60,8 @@ SELECT schemaname, indexname FROM pg_indexes WHERE tablename = 'possibilities';
 SQL
 
 step "Starting the rest of the stack"
-sudo docker compose up -d
+$DOCKER compose up -d
 
-sudo docker compose ps
+$DOCKER compose ps
 
-printf '\nDeploy done. Follow the logs with: make logs\n'
+printf '\nDeploy done. Follow the logs with: %s compose logs -f\n' "$DOCKER"

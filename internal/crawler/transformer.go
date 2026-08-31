@@ -27,6 +27,10 @@ func (ot *OfferTransformer) Transform(ctx context.Context, ch <-chan FetchedOffe
 
 	for batch := range ch {
 		for i, url := range batch.Urls {
+			if ctx.Err() != nil {
+				break
+			}
+
 			log.Printf("[%s %d/%d] Scraping: %s\n", batch.Category, i+1, len(batch.Urls), url)
 			// Be polite to the server with a short pause between requests
 			baseSecond := 65 * time.Second
@@ -41,11 +45,28 @@ func (ot *OfferTransformer) Transform(ctx context.Context, ch <-chan FetchedOffe
 
 			ot.Offers <- offer
 
-			time.Sleep(baseSecond + randSecond)
+			if !pause(ctx, baseSecond+randSecond) {
+				break
+			}
 		}
 	}
 
 	close(ot.Offers)
+}
+
+// pause waits out the politeness delay between requests, returning false as
+// soon as the context is cancelled so shutdown does not sit through the full
+// delay.
+func pause(ctx context.Context, d time.Duration) bool {
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+
+	select {
+	case <-ctx.Done():
+		return false
+	case <-timer.C:
+		return true
+	}
 }
 
 // scrapeOffer navigates to a single job-offer page and extracts the fields
