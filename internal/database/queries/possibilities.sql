@@ -4,7 +4,7 @@ SELECT * FROM possibilities WHERE id = $1;
 -- name: ListPossibilitiesByCategory :many
 SELECT * FROM possibilities
 WHERE category = $1
-ORDER BY posted_at DESC NULLS LAST, created_at DESC, id DESC;
+ORDER BY created_at DESC, id DESC;
 
 -- name: CreatePossibility :one
 INSERT INTO possibilities (

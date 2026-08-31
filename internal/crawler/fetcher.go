@@ -3,6 +3,7 @@ package crawler
 import (
 	"context"
 	"log"
+	"slices"
 	"time"
 
 	"github.com/chromedp/cdproto/cdp"
@@ -100,6 +101,12 @@ func (of *OfferFetcher) getUrls(ctx context.Context, url string) []string {
 		time.Sleep(backoff)
 	}
 
+	// The listing is sorted newest first, so it is walked back to front: the
+	// offers then land in the database oldest first and ordering the panel by
+	// "date added" descending puts the newest offer on top, the way the site
+	// shows them.
+	slices.Reverse(urlsToScrape)
+
 	log.Printf("Found %d links to scrape. Starting sequential crawl...\n", len(urlsToScrape))
 
 	return urlsToScrape
@@ -110,14 +117,14 @@ func (of *OfferFetcher) scrapeOnce(ctx context.Context, url string) ([]string, e
 	ctx, cancelTimeout := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancelTimeout()
 
-	seen := make(map[string]struct{})
+	links := newOrderedLinks()
 
 	log.Println("Navigating to target page...")
 
 	err := chromedp.Run(ctx,
 		chromedp.Navigate(url),
 		chromedp.ActionFunc(func(ctx context.Context) error {
-			return of.scrollAndCollectLinks(ctx, seen)
+			return of.scrollAndCollectLinks(ctx, links)
 		}),
 	)
 
@@ -125,12 +132,29 @@ func (of *OfferFetcher) scrapeOnce(ctx context.Context, url string) ([]string, e
 		return nil, err
 	}
 
-	urlsToScrape := make([]string, 0, len(seen))
-	for href := range seen {
-		urlsToScrape = append(urlsToScrape, href)
+	return links.urls, nil
+}
+
+// orderedLinks collects offer links in the order the listing renders them,
+// skipping the duplicates that reappear while scrolling. A plain map would
+// lose that order, and the listing order is what tells us which offers are
+// the newest.
+type orderedLinks struct {
+	seen map[string]struct{}
+	urls []string
+}
+
+func newOrderedLinks() *orderedLinks {
+	return &orderedLinks{seen: make(map[string]struct{})}
+}
+
+func (l *orderedLinks) add(href string) {
+	if _, ok := l.seen[href]; ok {
+		return
 	}
 
-	return urlsToScrape, nil
+	l.seen[href] = struct{}{}
+	l.urls = append(l.urls, href)
 }
 
 // scrollAndCollectLinks scrolls the page to the bottom, collecting offer-card
@@ -139,10 +163,10 @@ func (of *OfferFetcher) scrapeOnce(ctx context.Context, url string) ([]string, e
 // never grows. We have to collect hrefs after every scroll step instead of
 // waiting for the page to "grow", and stop once window.scrollY itself stops
 // advancing.
-func (of *OfferFetcher) scrollAndCollectLinks(ctx context.Context, seen map[string]struct{}) error {
+func (of *OfferFetcher) scrollAndCollectLinks(ctx context.Context, links *orderedLinks) error {
 	log.Println("Start scrolling...")
 
-	if err := collectOfferLinks(ctx, seen); err != nil {
+	if err := collectOfferLinks(ctx, links); err != nil {
 		return err
 	}
 
@@ -154,7 +178,7 @@ func (of *OfferFetcher) scrollAndCollectLinks(ctx context.Context, seen map[stri
 
 		time.Sleep(scrollStepDelay)
 
-		if err := collectOfferLinks(ctx, seen); err != nil {
+		if err := collectOfferLinks(ctx, links); err != nil {
 			return err
 		}
 
@@ -172,15 +196,15 @@ func (of *OfferFetcher) scrollAndCollectLinks(ctx context.Context, seen map[stri
 }
 
 // collectOfferLinks reads the hrefs of the currently mounted offer-card
-// nodes into seen.
-func collectOfferLinks(ctx context.Context, seen map[string]struct{}) error {
-	var links []*cdp.Node
-	if err := chromedp.Nodes(".offer-card", &links, chromedp.ByQueryAll, chromedp.AtLeast(0)).Do(ctx); err != nil {
+// nodes, keeping the order they appear in.
+func collectOfferLinks(ctx context.Context, links *orderedLinks) error {
+	var nodes []*cdp.Node
+	if err := chromedp.Nodes(".offer-card", &nodes, chromedp.ByQueryAll, chromedp.AtLeast(0)).Do(ctx); err != nil {
 		return err
 	}
-	for _, node := range links {
+	for _, node := range nodes {
 		if href, ok := node.Attribute("href"); ok {
-			seen[href] = struct{}{}
+			links.add(href)
 		}
 	}
 	return nil

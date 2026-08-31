@@ -33,5 +33,5 @@ CREATE TABLE possibilities (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS possibilities_category_posted_at_idx
-    ON possibilities (category, posted_at DESC NULLS LAST, created_at DESC, id DESC);
+CREATE INDEX IF NOT EXISTS possibilities_category_created_at_idx
+    ON possibilities (category, created_at DESC, id DESC);

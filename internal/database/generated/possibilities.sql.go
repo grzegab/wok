@@ -88,7 +88,7 @@ func (q *Queries) GetPossibility(ctx context.Context, id int64) (Possibility, er
 const listPossibilitiesByCategory = `-- name: ListPossibilitiesByCategory :many
 SELECT id, url, category, company_name, job_title, location, is_remote, tech, description, posted_at, created_at FROM possibilities
 WHERE category = $1
-ORDER BY posted_at DESC NULLS LAST, created_at DESC, id DESC
+ORDER BY created_at DESC, id DESC
 `
 
 func (q *Queries) ListPossibilitiesByCategory(ctx context.Context, category string) ([]Possibility, error) {
