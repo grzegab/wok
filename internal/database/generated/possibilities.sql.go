@@ -16,7 +16,8 @@ INSERT INTO possibilities (
 category, url, company_name, job_title, location, is_remote, tech, description, posted_at
 ) VALUES (
 $1, $2, $3, $4, $5, $6, $7, $8, $9
-) ON CONFLICT (url) DO NOTHING
+) ON CONFLICT (url) DO UPDATE
+SET posted_at = COALESCE(EXCLUDED.posted_at, possibilities.posted_at)
 RETURNING id, url, category, company_name, job_title, location, is_remote, tech, description, posted_at, created_at
 `
 
@@ -29,7 +30,7 @@ type CreatePossibilityParams struct {
 	IsRemote    bool        `json:"is_remote"`
 	Tech        pgtype.Text `json:"tech"`
 	Description pgtype.Text `json:"description"`
-	PostedAt    pgtype.Text `json:"posted_at"`
+	PostedAt    pgtype.Date `json:"posted_at"`
 }
 
 func (q *Queries) CreatePossibility(ctx context.Context, arg CreatePossibilityParams) (Possibility, error) {
@@ -85,7 +86,9 @@ func (q *Queries) GetPossibility(ctx context.Context, id int64) (Possibility, er
 }
 
 const listPossibilitiesByCategory = `-- name: ListPossibilitiesByCategory :many
-SELECT id, url, category, company_name, job_title, location, is_remote, tech, description, posted_at, created_at FROM possibilities WHERE category = $1 ORDER BY created_at DESC, id DESC
+SELECT id, url, category, company_name, job_title, location, is_remote, tech, description, posted_at, created_at FROM possibilities
+WHERE category = $1
+ORDER BY posted_at DESC NULLS LAST, created_at DESC, id DESC
 `
 
 func (q *Queries) ListPossibilitiesByCategory(ctx context.Context, category string) ([]Possibility, error) {

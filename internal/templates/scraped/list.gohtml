@@ -11,6 +11,7 @@
             <thead class="table-light">
             <tr>
                 <th>Title</th>
+                <th>Published</th>
                 <th>Technologies</th>
                 <th>URL</th>
             </tr>
@@ -19,12 +20,13 @@
             {{ range .Possibilities }}
             <tr>
                 <td class="fw-medium">{{ .JobTitle }}</td>
+                <td class="text-nowrap">{{ .Published }}</td>
                 <td>{{ .Tech }}</td>
                 <td><a href="{{ .Url }}" target="_blank" rel="noopener noreferrer">{{ .Url }}</a></td>
             </tr>
             {{ else }}
             <tr>
-                <td colspan="3" class="text-center text-muted py-5">No scraped offers yet.</td>
+                <td colspan="4" class="text-center text-muted py-5">No scraped offers yet.</td>
             </tr>
             {{ end }}
             </tbody>

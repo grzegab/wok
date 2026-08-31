@@ -53,10 +53,29 @@ done
 # where the app cannot see them.
 step "Applying schema updates"
 $DOCKER compose exec -T postgres sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" "$POSTGRES_DB"' <<'SQL'
-CREATE INDEX IF NOT EXISTS possibilities_category_created_at_idx
-    ON possibilities (category, created_at DESC, id DESC);
+-- posted_at was declared TEXT but never written, so the cast is a no-op on
+-- data and only fixes the column type the scraped list now sorts on.
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = current_schema()
+          AND table_name = 'possibilities'
+          AND column_name = 'posted_at'
+          AND data_type <> 'date'
+    ) THEN
+        ALTER TABLE possibilities
+            ALTER COLUMN posted_at TYPE DATE USING NULLIF(posted_at, '')::date;
+    END IF;
+END $$;
+
+DROP INDEX IF EXISTS possibilities_category_created_at_idx;
+
+CREATE INDEX IF NOT EXISTS possibilities_category_posted_at_idx
+    ON possibilities (category, posted_at DESC NULLS LAST, created_at DESC, id DESC);
 
 SELECT schemaname, indexname FROM pg_indexes WHERE tablename = 'possibilities';
+\d possibilities
 SQL
 
 step "Starting the rest of the stack"

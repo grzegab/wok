@@ -2,12 +2,10 @@ package crawler
 
 import (
 	"context"
-	"errors"
 	"log"
 	"time"
 
 	database "github.com/grzegab/wok/internal/database/generated"
-	"github.com/jackc/pgx/v5"
 )
 
 type OfferStore interface {
@@ -34,14 +32,10 @@ func (op *OfferPersist) persistOne(c database.CreatePossibilityParams) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	idx, err := op.offerStore.CreatePossibility(ctx, c)
-	if errors.Is(err, pgx.ErrNoRows) {
-		log.Printf("%s exists, skipping ...\n", c.Url)
-		return
-	}
+	saved, err := op.offerStore.CreatePossibility(ctx, c)
 	if err != nil {
-		log.Printf("Error creating possibility: %v\n", err)
+		log.Printf("Error saving possibility: %v\n", err)
 		return
 	}
-	log.Printf("Created possibility: %d\n", idx.ID)
+	log.Printf("Saved possibility: %d (%s)\n", saved.ID, c.Url)
 }

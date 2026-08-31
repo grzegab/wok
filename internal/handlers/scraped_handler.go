@@ -26,9 +26,10 @@ type ScrapedHandler struct {
 }
 
 type possibilityRow struct {
-	Url      string
-	JobTitle string
-	Tech     string
+	Url       string
+	JobTitle  string
+	Tech      string
+	Published string
 }
 
 type scrapedPageData struct {
@@ -61,9 +62,10 @@ func (h *ScrapedHandler) List(w http.ResponseWriter, r *http.Request) {
 	rows := make([]possibilityRow, 0, len(possibilities))
 	for _, p := range possibilities {
 		rows = append(rows, possibilityRow{
-			Url:      p.Url,
-			JobTitle: p.JobTitle,
-			Tech:     formatText(p.Tech),
+			Url:       p.Url,
+			JobTitle:  p.JobTitle,
+			Tech:      formatText(p.Tech),
+			Published: formatDate(p.PostedAt),
 		})
 	}
 

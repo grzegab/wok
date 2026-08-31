@@ -11,6 +11,10 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+// offerTimeout caps the time spent on a single offer page, so one unexpected
+// page cannot stall the whole crawl.
+const offerTimeout = 90 * time.Second
+
 type OfferTransformer struct {
 	Offers chan database.CreatePossibilityParams
 }
@@ -70,33 +74,54 @@ func pause(ctx context.Context, d time.Duration) bool {
 }
 
 // scrapeOffer navigates to a single job-offer page and extracts the fields
-// used to build a CreatePossibilityParams. The selectors below are specific
-// to the current DOM structure of the target site (relative XPath from the
-// "Job description"/"Tech stack" headings) and are expected to silently stop
-// matching if the site is redesigned.
+// used to build a CreatePossibilityParams. The selectors are specific to the
+// current DOM structure of the target site and will stop matching if it is
+// redesigned, so only the title and the company name are read with Text
+// (which waits for its node); every optional field goes through Evaluate,
+// which yields an empty string instead of blocking until the timeout.
 func scrapeOffer(ctx context.Context, url, category string) (database.CreatePossibilityParams, error) {
+	ctx, cancel := context.WithTimeout(ctx, offerTimeout)
+	defer cancel()
+
 	var jobTitle string
 	var companyName string
 	var description string
 	var location string
 	var body string
 	var stack string
+	var published string
 
 	err := chromedp.Run(ctx,
 		chromedp.Navigate(url),
 		chromedp.Text("h1", &jobTitle, chromedp.ByQuery),
 		chromedp.Text("h2", &companyName, chromedp.ByQuery),
 		chromedp.Text("body", &body, chromedp.ByQuery),
-		chromedp.Text(
-			`//h2/ancestor::a/preceding-sibling::div[1]`,
-			&location,
-			chromedp.BySearch,
-		),
-		chromedp.Text(
-			`//h3[normalize-space()='Job description']/following-sibling::div`,
-			&description,
-			chromedp.BySearch,
-		),
+		// The location is the line printed right below the job title
+		// ("al. 29 Listopada 20, Krakow"). The surrounding markup is generated
+		// class names, so the rendered text is the stable anchor. Evaluate is
+		// used rather than Text because a missing node must yield an empty
+		// string - a waiting Text selector would stall the whole crawl.
+		chromedp.Evaluate(`
+				(() => {
+					const h1 = document.querySelector('h1');
+					if (!h1) return '';
+					const title = (h1.innerText || '').trim();
+					const lines = document.body.innerText.split('\n').map(l => l.trim()).filter(Boolean);
+					const i = lines.indexOf(title);
+					return i >= 0 && i + 1 < lines.length ? lines[i + 1] : '';
+				})()
+			`,
+			&location),
+		chromedp.Evaluate(`
+				(() => {
+					const r = document.evaluate(
+						"//h3[normalize-space()='Job description']/following-sibling::div",
+						document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null
+					);
+					return r.singleNodeValue ? (r.singleNodeValue.innerText || '').trim() : '';
+				})()
+			`,
+			&description),
 		chromedp.Evaluate(`
 				(() => {
 					try {
@@ -118,6 +143,13 @@ func scrapeOffer(ctx context.Context, url, category string) (database.CreatePoss
 				})()
 			`,
 			&stack),
+		chromedp.Evaluate(`
+				(() => {
+					const m = document.body.innerText.match(/(?:Published|Opublikowano):\s*(\d{2})\.(\d{2})\.(\d{4})/);
+					return m ? m[3] + '-' + m[2] + '-' + m[1] : '';
+				})()
+			`,
+			&published),
 	)
 
 	if err != nil {
@@ -132,6 +164,7 @@ func scrapeOffer(ctx context.Context, url, category string) (database.CreatePoss
 		Location:    optText(location),
 		Tech:        optText(stack),
 		Description: optText(description),
+		PostedAt:    optDate(published),
 	}
 
 	if strings.Contains(body, "Remote") {
@@ -139,6 +172,17 @@ func scrapeOffer(ctx context.Context, url, category string) (database.CreatePoss
 	}
 
 	return offer, nil
+}
+
+// optDate parses the ISO date pulled out of the offer page's "Published:"
+// line. Offers without a readable date are stored as NULL and sort last.
+func optDate(s string) pgtype.Date {
+	day, err := time.Parse("2006-01-02", strings.TrimSpace(s))
+	if err != nil {
+		return pgtype.Date{}
+	}
+
+	return pgtype.Date{Time: day, Valid: true}
 }
 
 func optText(s string) pgtype.Text {
