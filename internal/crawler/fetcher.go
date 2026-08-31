@@ -14,6 +14,7 @@ import (
 const visibleOffers = 100
 const frequency = 6 * time.Hour
 const scrollStepDelay = 1 * time.Second
+const listingTimeout = 3 * time.Minute
 const maxFetchAttempts = 3
 const fetchRetryBaseDelay = 2 * time.Second
 
@@ -39,7 +40,7 @@ func NewOfferFetcher(categories []category.Category) *OfferFetcher {
 }
 
 func (of *OfferFetcher) Fetch(ctx context.Context) {
-	browserCtx, cancel := newBrowserContext(ctx)
+	allocCtx, cancel := newBrowserAllocator(ctx)
 	defer cancel()
 
 	randMinute := time.Minute * time.Duration(time.Now().UnixNano()%60)
@@ -50,7 +51,7 @@ func (of *OfferFetcher) Fetch(ctx context.Context) {
 
 	log.Printf("Checking web every %s\n", tickTime)
 
-	of.fetchAll(browserCtx)
+	of.fetchAll(allocCtx)
 
 	for {
 		select {
@@ -58,7 +59,7 @@ func (of *OfferFetcher) Fetch(ctx context.Context) {
 			close(of.FetchedUrls)
 			return
 		case <-ticker.C:
-			of.fetchAll(browserCtx)
+			of.fetchAll(allocCtx)
 		}
 	}
 }
@@ -112,10 +113,10 @@ func (of *OfferFetcher) getUrls(ctx context.Context, url string) []string {
 	return urlsToScrape
 }
 
-func (of *OfferFetcher) scrapeOnce(ctx context.Context, url string) ([]string, error) {
-	// Set a global 3-minute timeout so the script doesn't run forever
-	ctx, cancelTimeout := context.WithTimeout(ctx, 3*time.Minute)
-	defer cancelTimeout()
+func (of *OfferFetcher) scrapeOnce(allocCtx context.Context, url string) ([]string, error) {
+	// Own tab per listing, time-boxed so a stuck page can't run forever.
+	ctx, cancelTab := newTab(allocCtx, listingTimeout)
+	defer cancelTab()
 
 	links := newOrderedLinks()
 

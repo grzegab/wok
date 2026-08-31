@@ -26,7 +26,7 @@ func NewOfferTransformer() *OfferTransformer {
 }
 
 func (ot *OfferTransformer) Transform(ctx context.Context, ch <-chan FetchedOffers) {
-	ctx, cancel := newBrowserContext(ctx)
+	allocCtx, cancel := newBrowserAllocator(ctx)
 	defer cancel()
 
 	for batch := range ch {
@@ -41,7 +41,7 @@ func (ot *OfferTransformer) Transform(ctx context.Context, ch <-chan FetchedOffe
 			randSecond := time.Second * time.Duration(time.Now().UnixNano()%60)
 			log.Printf("Sleeping for %s\n", baseSecond+randSecond)
 
-			offer, err := scrapeOffer(ctx, url, batch.Category)
+			offer, err := scrapeOffer(allocCtx, url, batch.Category)
 			if err != nil {
 				log.Printf("Failed to scrape %s: %v\n", url, err)
 				continue
@@ -79,9 +79,10 @@ func pause(ctx context.Context, d time.Duration) bool {
 // redesigned, so only the title and the company name are read with Text
 // (which waits for its node); every optional field goes through Evaluate,
 // which yields an empty string instead of blocking until the timeout.
-func scrapeOffer(ctx context.Context, url, category string) (database.CreatePossibilityParams, error) {
-	ctx, cancel := context.WithTimeout(ctx, offerTimeout)
-	defer cancel()
+func scrapeOffer(allocCtx context.Context, url, category string) (database.CreatePossibilityParams, error) {
+	// Own tab per offer, time-boxed so one unexpected page can't stall the crawl.
+	ctx, cancelTab := newTab(allocCtx, offerTimeout)
+	defer cancelTab()
 
 	var jobTitle string
 	var companyName string
