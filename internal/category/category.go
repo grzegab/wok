@@ -20,6 +20,7 @@ var All = []Category{
 	{Slug: "php", Name: "PHP", ScrapeURL: "https://justjoin.it/job-offers/all-locations/php" + scrapeParams},
 	{Slug: "architect", Name: "Software Architect", ScrapeURL: "https://justjoin.it/job-offers/all-locations/architecture" + scrapeParams},
 	{Slug: "ai-ml", Name: "AI/ML", ScrapeURL: "https://justjoin.it/job-offers/all-locations/ai" + scrapeParams},
+	{Slug: "c", Name: "C/C++", ScrapeURL: "https://justjoin.it/job-offers/all-locations/c" + scrapeParams},
 }
 
 // BySlug returns the category addressed by a URL slug.
