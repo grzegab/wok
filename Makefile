@@ -1,4 +1,4 @@
-.PHONY: up down build logs sqlc hashgen deploy db-backup db-restore db-reset
+.PHONY: up down build logs sqlc hashgen deploy db-backup db-dump db-restore db-reset
 
 BACKUP_DIR := backups
 
@@ -39,6 +39,11 @@ db-backup:
 	mkdir -p $(BACKUP_DIR)
 	$(DOCKER) compose exec -T postgres sh -c 'pg_dump --clean --if-exists -U "$$POSTGRES_USER" "$$POSTGRES_DB"' > $(BACKUP_DIR)/wok_$$(date +%Y%m%d_%H%M%S).sql
 	@echo "Backup written to $(BACKUP_DIR)/"
+
+# Print a dump of the database to stdout for copy-pasting elsewhere.
+# Structure only: make db-dump ARGS=--schema-only
+db-dump:
+	./scripts/db-dump.sh $(ARGS)
 
 # Restore a SQL dump into Postgres: make db-restore FILE=backups/wok_20260101_120000.sql
 db-restore:
