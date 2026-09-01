@@ -26,36 +26,48 @@ func NewOfferTransformer() *OfferTransformer {
 }
 
 func (ot *OfferTransformer) Transform(ctx context.Context, ch <-chan FetchedOffers) {
-	allocCtx, cancel := newBrowserAllocator(ctx)
-	defer cancel()
-
 	for batch := range ch {
-		for i, url := range batch.Urls {
-			if ctx.Err() != nil {
-				break
-			}
-
-			log.Printf("[%s %d/%d] Scraping: %s\n", batch.Category, i+1, len(batch.Urls), url)
-			// Be polite to the server with a short pause between requests
-			baseSecond := 65 * time.Second
-			randSecond := time.Second * time.Duration(time.Now().UnixNano()%60)
-			log.Printf("Sleeping for %s\n", baseSecond+randSecond)
-
-			offer, err := scrapeOffer(allocCtx, url, batch.Category)
-			if err != nil {
-				log.Printf("Failed to scrape %s: %v\n", url, err)
-				continue
-			}
-
-			ot.Offers <- offer
-
-			if !pause(ctx, baseSecond+randSecond) {
-				break
-			}
-		}
+		ot.transformBatch(ctx, batch)
 	}
 
 	close(ot.Offers)
+}
+
+// transformBatch scrapes the offers of one batch through a single browser,
+// shut down once the batch is done rather than kept alive between batches.
+func (ot *OfferTransformer) transformBatch(ctx context.Context, batch FetchedOffers) {
+	browserCtx, closeBrowser, err := newBrowser(ctx)
+	if err != nil {
+		log.Printf("Skipping %s batch: %v\n", batch.Category, err)
+		return
+	}
+	defer closeBrowser()
+
+	for i, url := range batch.Urls {
+		if ctx.Err() != nil {
+			return
+		}
+
+		log.Printf("[%s %d/%d] Scraping: %s\n", batch.Category, i+1, len(batch.Urls), url)
+
+		offer, err := scrapeOffer(browserCtx, url, batch.Category)
+		if err != nil {
+			log.Printf("Failed to scrape %s: %v\n", url, err)
+		} else {
+			ot.Offers <- offer
+		}
+
+		// Be polite to the server with a short pause between requests. A
+		// failed offer waits too: retrying the next one at full speed is how
+		// a transient problem turns into a hammering loop.
+		baseSecond := 65 * time.Second
+		randSecond := time.Second * time.Duration(time.Now().UnixNano()%60)
+		log.Printf("Sleeping for %s\n", baseSecond+randSecond)
+
+		if !pause(ctx, baseSecond+randSecond) {
+			return
+		}
+	}
 }
 
 // pause waits out the politeness delay between requests, returning false as
@@ -79,9 +91,9 @@ func pause(ctx context.Context, d time.Duration) bool {
 // redesigned, so only the title and the company name are read with Text
 // (which waits for its node); every optional field goes through Evaluate,
 // which yields an empty string instead of blocking until the timeout.
-func scrapeOffer(allocCtx context.Context, url, category string) (database.CreatePossibilityParams, error) {
+func scrapeOffer(browserCtx context.Context, url, category string) (database.CreatePossibilityParams, error) {
 	// Own tab per offer, time-boxed so one unexpected page can't stall the crawl.
-	ctx, cancelTab := newTab(allocCtx, offerTimeout)
+	ctx, cancelTab := newTab(browserCtx, offerTimeout)
 	defer cancelTab()
 
 	var jobTitle string

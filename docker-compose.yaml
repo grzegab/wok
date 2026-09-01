@@ -48,6 +48,10 @@ services:
       context: .
       dockerfile: docker/crawler/Dockerfile
     restart: always
+    # Chromium orphans helper processes (zygote, crashpad) that reparent to
+    # PID 1. The Go binary never reaps them, so without an init they pile up
+    # as zombies until fork/pthread_create start failing with EAGAIN.
+    init: true
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432

@@ -40,9 +40,6 @@ func NewOfferFetcher(categories []category.Category) *OfferFetcher {
 }
 
 func (of *OfferFetcher) Fetch(ctx context.Context) {
-	allocCtx, cancel := newBrowserAllocator(ctx)
-	defer cancel()
-
 	randMinute := time.Minute * time.Duration(time.Now().UnixNano()%60)
 	tickTime := frequency + randMinute
 
@@ -51,7 +48,7 @@ func (of *OfferFetcher) Fetch(ctx context.Context) {
 
 	log.Printf("Checking web every %s\n", tickTime)
 
-	of.fetchAll(allocCtx)
+	of.fetchAll(ctx)
 
 	for {
 		select {
@@ -59,17 +56,25 @@ func (of *OfferFetcher) Fetch(ctx context.Context) {
 			close(of.FetchedUrls)
 			return
 		case <-ticker.C:
-			of.fetchAll(allocCtx)
+			of.fetchAll(ctx)
 		}
 	}
 }
 
 // fetchAll collects the offer links of every configured category, one
-// category at a time so a single browser context is enough.
+// category at a time so a single browser is enough. The browser only lives
+// for the pass, so a crashed one cannot poison the passes that follow.
 func (of *OfferFetcher) fetchAll(ctx context.Context) {
+	browserCtx, closeBrowser, err := newBrowser(ctx)
+	if err != nil {
+		log.Printf("Skipping pass: %v\n", err)
+		return
+	}
+	defer closeBrowser()
+
 	for _, cat := range of.categories {
 		log.Printf("Crawling %s offers at %s ...\n", cat.Name, cat.ScrapeURL)
-		offers := FetchedOffers{Category: cat.Name, Urls: of.getUrls(ctx, cat.ScrapeURL)}
+		offers := FetchedOffers{Category: cat.Name, Urls: of.getUrls(browserCtx, cat.ScrapeURL)}
 
 		// A blocking send would keep Fetch inside this loop once the buffer
 		// fills up, so it would never reach the ctx.Done() case that closes
@@ -113,9 +118,9 @@ func (of *OfferFetcher) getUrls(ctx context.Context, url string) []string {
 	return urlsToScrape
 }
 
-func (of *OfferFetcher) scrapeOnce(allocCtx context.Context, url string) ([]string, error) {
+func (of *OfferFetcher) scrapeOnce(browserCtx context.Context, url string) ([]string, error) {
 	// Own tab per listing, time-boxed so a stuck page can't run forever.
-	ctx, cancelTab := newTab(allocCtx, listingTimeout)
+	ctx, cancelTab := newTab(browserCtx, listingTimeout)
 	defer cancelTab()
 
 	links := newOrderedLinks()
