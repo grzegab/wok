@@ -62,6 +62,30 @@ func (q *Queries) CreatePossibility(ctx context.Context, arg CreatePossibilityPa
 	return i, err
 }
 
+const existingPossibilityUrls = `-- name: ExistingPossibilityUrls :many
+SELECT url FROM possibilities WHERE url = ANY($1::text[])
+`
+
+func (q *Queries) ExistingPossibilityUrls(ctx context.Context, urls []string) ([]string, error) {
+	rows, err := q.db.Query(ctx, existingPossibilityUrls, urls)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var url string
+		if err := rows.Scan(&url); err != nil {
+			return nil, err
+		}
+		items = append(items, url)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getPossibility = `-- name: GetPossibility :one
 SELECT id, url, category, company_name, job_title, location, is_remote, tech, description, posted_at, created_at FROM possibilities WHERE id = $1
 `

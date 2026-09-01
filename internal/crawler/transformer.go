@@ -3,6 +3,7 @@ package crawler
 import (
 	"context"
 	"log"
+	"math/rand/v2"
 	"strings"
 	"time"
 
@@ -15,13 +16,28 @@ import (
 // page cannot stall the whole crawl.
 const offerTimeout = 90 * time.Second
 
-type OfferTransformer struct {
-	Offers chan database.CreatePossibilityParams
+// minOfferPause and maxOfferPause bound the wait between two offer pages.
+const minOfferPause = 5 * time.Second
+const maxOfferPause = 12 * time.Second
+
+// knownOffersTimeout caps the lookup of already-stored offers.
+const knownOffersTimeout = 5 * time.Second
+
+// knownOfferStore tells which of the offers a batch carries were already
+// scraped, so they don't have to be loaded again.
+type knownOfferStore interface {
+	ExistingPossibilityUrls(ctx context.Context, urls []string) ([]string, error)
 }
 
-func NewOfferTransformer() *OfferTransformer {
+type OfferTransformer struct {
+	knownOffers knownOfferStore
+	Offers      chan database.CreatePossibilityParams
+}
+
+func NewOfferTransformer(ko knownOfferStore) *OfferTransformer {
 	return &OfferTransformer{
-		Offers: make(chan database.CreatePossibilityParams),
+		knownOffers: ko,
+		Offers:      make(chan database.CreatePossibilityParams),
 	}
 }
 
@@ -36,6 +52,13 @@ func (ot *OfferTransformer) Transform(ctx context.Context, ch <-chan FetchedOffe
 // transformBatch scrapes the offers of one batch through a single browser,
 // shut down once the batch is done rather than kept alive between batches.
 func (ot *OfferTransformer) transformBatch(ctx context.Context, batch FetchedOffers) {
+	// Checked before the browser is started, so a pass that brings nothing
+	// new costs one query and no Chromium at all.
+	urls := ot.unseen(ctx, batch)
+	if len(urls) == 0 {
+		return
+	}
+
 	browserCtx, closeBrowser, err := newBrowser(ctx)
 	if err != nil {
 		log.Printf("Skipping %s batch: %v\n", batch.Category, err)
@@ -43,12 +66,12 @@ func (ot *OfferTransformer) transformBatch(ctx context.Context, batch FetchedOff
 	}
 	defer closeBrowser()
 
-	for i, url := range batch.Urls {
+	for i, url := range urls {
 		if ctx.Err() != nil {
 			return
 		}
 
-		log.Printf("[%s %d/%d] Scraping: %s\n", batch.Category, i+1, len(batch.Urls), url)
+		log.Printf("[%s %d/%d] Scraping: %s\n", batch.Category, i+1, len(urls), url)
 
 		offer, err := scrapeOffer(browserCtx, url, batch.Category)
 		if err != nil {
@@ -60,14 +83,50 @@ func (ot *OfferTransformer) transformBatch(ctx context.Context, batch FetchedOff
 		// Be polite to the server with a short pause between requests. A
 		// failed offer waits too: retrying the next one at full speed is how
 		// a transient problem turns into a hammering loop.
-		baseSecond := 65 * time.Second
-		randSecond := time.Second * time.Duration(time.Now().UnixNano()%60)
-		log.Printf("Sleeping for %s\n", baseSecond+randSecond)
+		delay := minOfferPause + rand.N(maxOfferPause-minOfferPause)
+		log.Printf("Sleeping for %s\n", delay)
 
-		if !pause(ctx, baseSecond+randSecond) {
+		if !pause(ctx, delay) {
 			return
 		}
 	}
+}
+
+// unseen drops the offers already stored, so a pass only pays the page load
+// and the politeness delay for offers it has never scraped. One query for the
+// whole batch, not one per offer. A failing lookup keeps every URL: scraping
+// an offer twice is cheaper than losing a new one, and the insert deduplicates
+// on the url anyway.
+func (ot *OfferTransformer) unseen(ctx context.Context, batch FetchedOffers) []string {
+	if len(batch.Urls) == 0 {
+		return nil
+	}
+
+	lookupCtx, cancel := context.WithTimeout(ctx, knownOffersTimeout)
+	defer cancel()
+
+	known, err := ot.knownOffers.ExistingPossibilityUrls(lookupCtx, batch.Urls)
+	if err != nil {
+		log.Printf("Could not check known %s offers, scraping all of them: %v\n", batch.Category, err)
+		return batch.Urls
+	}
+
+	skip := make(map[string]struct{}, len(known))
+	for _, url := range known {
+		skip[url] = struct{}{}
+	}
+
+	urls := make([]string, 0, len(batch.Urls)-len(skip))
+	for _, url := range batch.Urls {
+		if _, ok := skip[url]; !ok {
+			urls = append(urls, url)
+		}
+	}
+
+	log.Printf("[%s] %d offers found, %d already known, %d to scrape\n",
+		batch.Category, len(batch.Urls), len(skip), len(urls))
+
+	return urls
 }
 
 // pause waits out the politeness delay between requests, returning false as

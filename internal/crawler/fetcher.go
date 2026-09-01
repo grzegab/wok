@@ -3,6 +3,7 @@ package crawler
 import (
 	"context"
 	"log"
+	"math/rand/v2"
 	"slices"
 	"time"
 
@@ -12,7 +13,8 @@ import (
 )
 
 const visibleOffers = 100
-const frequency = 6 * time.Hour
+const frequency = 2 * time.Hour
+const maxFrequencyJitter = 1 * time.Hour
 const scrollStepDelay = 1 * time.Second
 const listingTimeout = 3 * time.Minute
 const maxFetchAttempts = 3
@@ -40,23 +42,17 @@ func NewOfferFetcher(categories []category.Category) *OfferFetcher {
 }
 
 func (of *OfferFetcher) Fetch(ctx context.Context) {
-	randMinute := time.Minute * time.Duration(time.Now().UnixNano()%60)
-	tickTime := frequency + randMinute
-
-	ticker := time.NewTicker(tickTime)
-	defer ticker.Stop()
-
-	log.Printf("Checking web every %s\n", tickTime)
-
-	of.fetchAll(ctx)
-
 	for {
-		select {
-		case <-ctx.Done():
+		of.fetchAll(ctx)
+
+		// The wait is re-drawn after every pass, so the crawl doesn't settle
+		// into a fixed rhythm the site could recognise.
+		wait := frequency + rand.N(maxFrequencyJitter)
+		log.Printf("Checking web again in %s\n", wait)
+
+		if !pause(ctx, wait) {
 			close(of.FetchedUrls)
 			return
-		case <-ticker.C:
-			of.fetchAll(ctx)
 		}
 	}
 }

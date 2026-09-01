@@ -44,7 +44,7 @@ func main() {
 		cr.Fetch(ctx)
 	})
 
-	ot := crawler.NewOfferTransformer()
+	ot := crawler.NewOfferTransformer(db)
 	wg.Go(func() {
 		ot.Transform(ctx, cr.FetchedUrls)
 	})
