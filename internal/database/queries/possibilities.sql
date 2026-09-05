@@ -11,9 +11,9 @@ SELECT url FROM possibilities WHERE url = ANY(@urls::text[]);
 
 -- name: CreatePossibility :one
 INSERT INTO possibilities (
-category, url, company_name, job_title, location, is_remote, tech, description, posted_at
+category, url, company_name, job_title, location, is_remote, tech, description, source, posted_at
 ) VALUES (
-$1, $2, $3, $4, $5, $6, $7, $8, $9
+$1, $2, $3, $4, $5, $6, $7, $8, $9, $10
 ) ON CONFLICT (url) DO UPDATE
 SET posted_at = COALESCE(EXCLUDED.posted_at, possibilities.posted_at)
 RETURNING *;

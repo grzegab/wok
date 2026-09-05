@@ -13,12 +13,12 @@ import (
 
 const createPossibility = `-- name: CreatePossibility :one
 INSERT INTO possibilities (
-category, url, company_name, job_title, location, is_remote, tech, description, posted_at
+category, url, company_name, job_title, location, is_remote, tech, description, source, posted_at
 ) VALUES (
-$1, $2, $3, $4, $5, $6, $7, $8, $9
+$1, $2, $3, $4, $5, $6, $7, $8, $9, $10
 ) ON CONFLICT (url) DO UPDATE
 SET posted_at = COALESCE(EXCLUDED.posted_at, possibilities.posted_at)
-RETURNING id, url, category, company_name, job_title, location, is_remote, tech, description, posted_at, created_at
+RETURNING id, url, category, company_name, job_title, location, is_remote, tech, description, source, posted_at, created_at
 `
 
 type CreatePossibilityParams struct {
@@ -30,6 +30,7 @@ type CreatePossibilityParams struct {
 	IsRemote    bool        `json:"is_remote"`
 	Tech        pgtype.Text `json:"tech"`
 	Description pgtype.Text `json:"description"`
+	Source      pgtype.Text `json:"source"`
 	PostedAt    pgtype.Date `json:"posted_at"`
 }
 
@@ -43,6 +44,7 @@ func (q *Queries) CreatePossibility(ctx context.Context, arg CreatePossibilityPa
 		arg.IsRemote,
 		arg.Tech,
 		arg.Description,
+		arg.Source,
 		arg.PostedAt,
 	)
 	var i Possibility
@@ -56,6 +58,7 @@ func (q *Queries) CreatePossibility(ctx context.Context, arg CreatePossibilityPa
 		&i.IsRemote,
 		&i.Tech,
 		&i.Description,
+		&i.Source,
 		&i.PostedAt,
 		&i.CreatedAt,
 	)
@@ -87,7 +90,7 @@ func (q *Queries) ExistingPossibilityUrls(ctx context.Context, urls []string) ([
 }
 
 const getPossibility = `-- name: GetPossibility :one
-SELECT id, url, category, company_name, job_title, location, is_remote, tech, description, posted_at, created_at FROM possibilities WHERE id = $1
+SELECT id, url, category, company_name, job_title, location, is_remote, tech, description, source, posted_at, created_at FROM possibilities WHERE id = $1
 `
 
 func (q *Queries) GetPossibility(ctx context.Context, id int64) (Possibility, error) {
@@ -103,6 +106,7 @@ func (q *Queries) GetPossibility(ctx context.Context, id int64) (Possibility, er
 		&i.IsRemote,
 		&i.Tech,
 		&i.Description,
+		&i.Source,
 		&i.PostedAt,
 		&i.CreatedAt,
 	)
@@ -110,7 +114,7 @@ func (q *Queries) GetPossibility(ctx context.Context, id int64) (Possibility, er
 }
 
 const listPossibilitiesByCategory = `-- name: ListPossibilitiesByCategory :many
-SELECT id, url, category, company_name, job_title, location, is_remote, tech, description, posted_at, created_at FROM possibilities
+SELECT id, url, category, company_name, job_title, location, is_remote, tech, description, source, posted_at, created_at FROM possibilities
 WHERE category = $1
 ORDER BY created_at DESC, id DESC
 `
@@ -134,6 +138,7 @@ func (q *Queries) ListPossibilitiesByCategory(ctx context.Context, category stri
 			&i.IsRemote,
 			&i.Tech,
 			&i.Description,
+			&i.Source,
 			&i.PostedAt,
 			&i.CreatedAt,
 		); err != nil {

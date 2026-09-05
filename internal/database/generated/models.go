@@ -84,6 +84,7 @@ type Possibility struct {
 	IsRemote    bool               `json:"is_remote"`
 	Tech        pgtype.Text        `json:"tech"`
 	Description pgtype.Text        `json:"description"`
+	Source      pgtype.Text        `json:"source"`
 	PostedAt    pgtype.Date        `json:"posted_at"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }

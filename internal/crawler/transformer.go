@@ -23,6 +23,9 @@ const maxOfferPause = 12 * time.Second
 // knownOffersTimeout caps the lookup of already-stored offers.
 const knownOffersTimeout = 5 * time.Second
 
+// source is constant for this crawler
+const source = "justjoin.it"
+
 // knownOfferStore tells which of the offers a batch carries were already
 // scraped, so they don't have to be loaded again.
 type knownOfferStore interface {
@@ -237,6 +240,7 @@ func scrapeOffer(browserCtx context.Context, url, category string) (database.Cre
 		Tech:        optText(stack),
 		Description: optText(description),
 		PostedAt:    optDate(published),
+		Source:      optText(source),
 	}
 
 	if strings.Contains(body, "Remote") {

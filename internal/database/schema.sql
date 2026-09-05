@@ -29,6 +29,7 @@ CREATE TABLE possibilities (
     is_remote BOOLEAN NOT NULL DEFAULT false,
     tech TEXT,
     description TEXT,
+    source TEXT,
     posted_at DATE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
