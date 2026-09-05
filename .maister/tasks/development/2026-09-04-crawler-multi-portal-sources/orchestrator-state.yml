@@ -1,0 +1,184 @@
+orchestrator:
+  started_phase: phase-8-implementation
+  completed_phases: [phase-1-codebase-analysis, phase-2-gap-analysis, phase-4-ui-mockups, phase-5-specification, phase-6-spec-audit, phase-7-implementation-planning]
+  failed_phases: []
+  auto_fix_attempts: {}
+  options:
+    spec_audit_enabled: true
+    skip_test_suite: true
+    e2e_enabled: true
+    user_docs_enabled: true
+    code_review_enabled: true
+    pragmatic_review_enabled: true
+    reality_check_enabled: true
+    production_check_enabled: true
+    sequential: null
+  created: 2026-09-04T00:00:00Z
+  updated: 2026-09-04T00:00:00Z
+  task_path: .maister/tasks/development/2026-09-04-crawler-multi-portal-sources
+  task_ids: {}
+
+task:
+  title: "Crawler: dodanie portali NoFluffJobs, Bulldogjob, solid.jobs"
+  description: |
+    Dodać do crawlera nowe portale z ofertami pracy: NoFluffJobs, Bulldogjob, solid.jobs.
+    Zakres:
+      1. Źródła (portale) zdefiniowane w bazie danych — dziś URL-e hardcodowane w internal/category/category.go, wyłącznie justjoin.it
+      2. Konfigurowalne URL-e list ofert; użytkownik MUSI ręcznie potwierdzić poprawność URL-i przed implementacją (twardy gate)
+      3. Zapis surowego HTML oferty oraz — jeśli portal udostępnia — słów kluczowych i daty pojawienia się oferty (posted_at już istnieje)
+    Poza zakresem: deduplikacja semantyczna między portalami (użytkownik zrobi ręcznie z LLM).
+    Istniejąca deduplikacja po URL (ExistingPossibilityUrls + ON CONFLICT (url) DO UPDATE) ma zostać nietknięta.
+    Throttling: oferta co 2-3 min (dziś 5-12s w transformer.go), lista ofert co 4-5h z jitterem (dziś 2h + 1h jitter w fetcher.go).
+  status: in_progress
+  tags: [crawler, scraping, database, throttling]
+  priority: null
+
+task_context:
+  risk_level: high
+  clarifications_resolved: true
+  scope_expanded: true
+  architecture_decision: null
+  urls_approved: true
+  tech_clarified: true
+  urls_artifact: analysis/approved-urls.md
+  task_characteristics:
+    has_reproducible_defect: false
+    modifies_existing_code: true
+    creates_new_entities: true
+    involves_data_operations: true
+    ui_heavy: true
+  change_type: modificative
+  compatibility_requirements: strict
+  architectural_impact: high
+  effort_estimate: high
+  research_reference:
+    path: null
+    research_question: null
+    research_type: null
+    confidence_level: null
+  design_reference:
+    source: "phase-4-ascii"
+    product_design_path: null
+    mockup_count: 0
+    has_brief: false
+    index_path: analysis/design-context/INDEX.md
+  project_context:
+    project_doc_paths:
+      - .maister/docs/INDEX.md
+      - .maister/docs/project/vision.md
+      - .maister/docs/project/tech-stack.md
+  phase_summaries:
+    research: {summary: null, key_findings: [], recommended_approach: null}
+    design: {summary: null, screen_count: 0, component_count: 0, index_path: null}
+    codebase_analysis:
+      key_files:
+        - internal/crawler/transformer.go
+        - internal/crawler/fetcher.go
+        - internal/category/category.go
+        - internal/database/schema.sql
+        - internal/database/queries/possibilities.sql
+        - scripts/deploy.sh
+        - cmd/crawler/main.go
+      primary_language: Go
+      complexity: complex
+      summary: >-
+        Crawler to 3-stopniowy pipeline goroutine, ktorego cala wiedza o justjoin.it siedzi w trzech
+        miejscach (URL-e w category.go, selektor .offer-card w fetcher.go, selektory pol w scrapeOffer).
+        Pojecie zrodla/portalu nie istnieje w kodzie, schemacie ani konfiguracji. Glowne ryzyko to brak
+        mechanizmu migracji oraz nieweryfikowany w repo schemat `wok`.
+    clarifications:
+      - "Model zrodel: tabele sources + scrape_targets + FK source_id w possibilities"
+      - "Raw HTML: osobna tabela 1:1 possibility_html"
+      - "Keywords: reuse istniejacej kolumny tech (bez nowej kolumny)"
+      - "Przepustowosc: rownoleglosc per portal (osobny Chromium i throttling na portal)"
+      - "URL-e listingow zatwierdzone przez uzytkownika 2026-09-04 (analysis/approved-urls.md, 23 wiersze scrape_targets)"
+      - "NoFluffJobs: wiele URL-i na kategorie tam gdzie portal rozbija technologie (go+golang, c+c++)"
+      - "Bulldogjob: dla architect i ai-ml filtr role, nie skills"
+      - "solid.jobs: brak landingu AI/ML, uzyto /praca/data-science" 
+    gap_analysis:
+      integration_points:
+        - cmd/crawler/main.go
+        - internal/crawler/fetcher.go
+        - internal/crawler/transformer.go
+        - internal/crawler/persist.go
+        - internal/database/queries/sources.sql
+        - internal/handlers/scraped_handler.go
+        - internal/templates/scraped/list.gohtml
+        - scripts/deploy.sh
+      completeness_score: 45
+      summary: >-
+        Ryzyko high, architectural_impact high. Dwie pulapki niewidoczne w analizie kodu:
+        possibilities.category trzyma Name a nie slug (zapis sluga wyzeruje widoki /scr4p3d i /st4ts
+        bez bledu), oraz cdp.Node.Attribute("href") zwraca surowy atrybut, wiec relatywne URL-e groza
+        kolizja UNIQUE (url) miedzy portalami. Postac URL-a to decyzja nieodwracalna.
+        possibility_html jest tabela write-only bez polityki retencji. 8 instancji Chromium bez mem_limit
+        przy /dev/shm 64 MB.
+    scope_clarifications:
+      scope_expanded: true
+      summary: >-
+        8 decyzji krytycznych i 6 z 9 waznych zatwierdzonych. Kluczowe: nazwany plik migracji + osobny
+        seed.sql (23 wiersze), category.All zostaje w Go bez ScrapeURL, crawler mapuje slug->Name przed
+        zapisem, URL wymuszany do postaci absolutnej (wymaga sprawdzenia produkcji przed DDL),
+        possibility_html write-only bez retencji, nieudane parsowanie zapisuje wiersz z HTML i placeholderem.
+        ODRZUCONE: test integracyjny Postgresa (ON CONFLICT bez pokrycia), backfill bez limitu
+        (potrzebny limit ofert na przebieg - wartosc do ustalenia w Fazie 5), transakcja possibilities +
+        possibility_html (dwa osobne INSERT-y, ryzyko sierot bez HTML).
+    ui_mockups:
+      components_designed:
+        - screen:scraped-list
+        - component:source-cell
+        - component:source-null-fallback
+        - component:unparsed-row
+      summary: >-
+        Kolumna Source jako druga (miedzy Title a Published), pelna nazwa portalu w badge text-bg-light
+        border - ten sam wzorzec co offers/list.gohtml:40,44, zero nowego CSS. categorynav.gohtml bez zmian.
+        Dwie pulapki: colspan="4" w scraped/list.gohtml:29 musi isc na 5, oraz source_id jest nullable wiec
+        cala historyczna lista justjoin.it pokaze "-" miedzy migracja a backfillem.
+    design:
+      summary: >-
+        Mockupy ASCII dla jedynej zmiany w UI - kolumny zrodla w liscie zescrapowanych ofert.
+      screen_count: 1
+      component_count: 3
+      index_path: analysis/design-context/INDEX.md
+    specification:
+      summary: >-
+        spec.md, 947 wierszy, 16 sekcji, 24 kryteria akceptacji. Dwa waskie interfejsy LinkCollector
+        (fetcher) i OfferParser (transformer), po 4 implementacje. Rozdzielenie pobrania HTML od
+        parsowania z ReadySelector() jako zamiennikiem niejawnego sygnalu hydracji, ktory dzis pelni
+        chromedp.Text("h1"). Pole Pass uint64 w FetchedOffers do egzekwowania limitu 100 ofert na przebieg.
+        Nowy pakiet internal/offer na stala placeholdera (unikniecie zaleznosci handlers -> crawler).
+        Seed 23 wiersze. Backfill source_id w tym samym wdrozeniu. Otwarte pozycje: 2,3 (DOM portali,
+        do zamkniecia przy implementacji), 4,5,6 (strojenie: listingTimeout, recykling Chromium, pgxpool).
+    architecture_decision: {decision: null, summary: null}
+
+planning_context:
+  groups: 14
+  steps: 91
+  tests: "41-51"
+  visual_coverage: "100% (4 ekrany, 8 komponentow)"
+  parallelizable: [G5 z G1-G4, G3 z G4, G7-G10 rownolegle, G12 z G6-G11]
+  hard_blocked: [G2/G3 przez G1, G6 przez G4+G5, G11 przez G7-G10, G13 przez komplet]
+  gate_group_1: >-
+    Reczna weryfikacja produkcji przed napisaniem pierwszego SQL-a: SELECT url FROM possibilities LIMIT 5,
+    licznik URL-i relatywnych, SELECT DISTINCT category, SELECT current_schema(). Wynik decyduje czy powstaje
+    plik normalizacji URL-i i czy decyzja category-key-mismatch sie broni.
+  post_planning_resolutions:
+    R1: "ExistingPossibilityUrls dostaje AND job_title <> '(unparsed)' - jedyne odstepstwo od zakazu ruszania dedupu"
+    R2: "Kryterium 5 zawezone do celu konfliktu i zachowania dla wiersza poprawnie sparsowanego"
+
+verification_context:
+  spec_audit:
+    verdict: pass-with-concerns
+    findings: {critical: 0, high: 5, medium: 7, low: 7}
+    blocking_resolved: [H1, H2, H3, H4, H5, M1, M2, M3, M5, M7]
+    report: verification/spec-audit.md
+    note: >-
+      21 z 24 cytatow spec potwierdzonych co do wiersza. Wszystkie ustalenia blokujace naniesione
+      na spec.md (Aneks A). Korekty faktow: disable-dev-shm-usage jest juz domyslnie aktywne w chromedp
+      (propozycja usunieta jako martwy kod), Makefile:71 -> :55, docker-compose.yaml:51 -> :54,
+      trzecie miejsce lamania kompilacji to routing_test.go:118.
+  last_status: null
+  issues_found: []
+  fixes_applied: []
+  decisions_made: []
+  reverify_count: 0
