@@ -72,8 +72,8 @@ task_context:
     design: {summary: null, screen_count: 0, component_count: 0, index_path: null}
     codebase_analysis:
       key_files:
-        - internal/crawler/transformer.go
-        - internal/crawler/fetcher.go
+        - internal/justjoin/transformer.go
+        - internal/justjoin/fetcher.go
         - internal/category/category.go
         - internal/database/schema.sql
         - internal/database/queries/possibilities.sql
@@ -98,9 +98,9 @@ task_context:
     gap_analysis:
       integration_points:
         - cmd/crawler/main.go
-        - internal/crawler/fetcher.go
-        - internal/crawler/transformer.go
-        - internal/crawler/persist.go
+        - internal/justjoin/fetcher.go
+        - internal/justjoin/transformer.go
+        - internal/justjoin/persist.go
         - internal/database/queries/sources.sql
         - internal/handlers/scraped_handler.go
         - internal/templates/scraped/list.gohtml

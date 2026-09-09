@@ -28,12 +28,12 @@ Grupa 1 nie deklaruje ani `Dependencies:`, ani `Files to Modify:`. Jest bramką 
 - Z INDEX.md: `global/conventions.md` — potwierdzono brak potrzeby zmiennych środowiskowych dla throttlingu
 - Odkryte w trakcie: brak — kontrakty §9.1/§9.3/§9.6 były wystarczająco precyzyjne
 
-**Testy**: `go test ./internal/crawler/ -run TestAbsoluteURL` → 6/6 PASS. Weryfikacja agenta głównego: `go build ./...`, `go vet ./...` czyste, pełne `go test ./internal/crawler/` → PASS (istniejące `TestOptDate`, `TestUnseen` bez regresji), `go list -deps ./cmd/web | grep chromedp` → zero trafień (kryterium 24).
+**Testy**: `go test ./internal/justjoin/ -run TestAbsoluteURL` → 6/6 PASS. Weryfikacja agenta głównego: `go build ./...`, `go vet ./...` czyste, pełne `go test ./internal/justjoin/` → PASS (istniejące `TestOptDate`, `TestUnseen` bez regresji), `go list -deps ./cmd/web | grep chromedp` → zero trafień (kryterium 24).
 
 **Pliki**
-- `internal/crawler/fetcher.go` — usunięte `frequency`/`maxFrequencyJitter`/`listingTimeout`; dodane `LinkCollector`, `absoluteURL` (`:229`); `scrollAndCollectLinks`/`collectOfferLinks` z metod na funkcje pakietu sparametryzowane selektorem
-- `internal/crawler/transformer.go` — usunięte `minOfferPause`/`maxOfferPause`; dodane `OfferParser`, `ParsedOffer`, `htmlReadyTimeout`, `fetchOfferHTML`
-- `internal/crawler/throttling.go` (nowy), `internal/crawler/fetcher_test.go` (nowy), `internal/offer/placeholder.go` (nowy)
+- `internal/justjoin/fetcher.go` — usunięte `frequency`/`maxFrequencyJitter`/`listingTimeout`; dodane `LinkCollector`, `absoluteURL` (`:229`); `scrollAndCollectLinks`/`collectOfferLinks` z metod na funkcje pakietu sparametryzowane selektorem
+- `internal/justjoin/transformer.go` — usunięte `minOfferPause`/`maxOfferPause`; dodane `OfferParser`, `ParsedOffer`, `htmlReadyTimeout`, `fetchOfferHTML`
+- `internal/justjoin/throttling.go` (nowy), `internal/justjoin/fetcher_test.go` (nowy), `internal/offer/placeholder.go` (nowy)
 
 **Decyzje wykonawcy warte odnotowania**
 1. **`listingTimeout` znika naprawdę, nie zmienia nazwy.** Zamiast nowej stałej pakietowej (co przeczyłoby rozstrzygnięciu M5 — „budżet czasu należy do implementacji `LinkCollector`"), `scrapeOnce` dostał wartość `3*time.Minute` inline z komentarzem. Zachowuje dotychczasowe zachowanie runtime bez tworzenia bytu, który Grupa 7 i tak zastąpi.
@@ -49,4 +49,4 @@ Grupa 1 nie deklarowała `Dependencies:` ani `Files to Modify:`, co zgodnie z re
 
 **Następna fala**: Grupy 7-10 (cztery portale). Zależą wyłącznie od zamkniętej Grupy 5, a ich zbiory plików są parami rozłączne (osobny `<portal>_portal.go`, `<portal>_portal_test.go` i katalog `testdata/<portal>/`).
 
-**Ograniczenie, które wymusza szeregowanie części pracy**: pierwszy krok każdej grupy portalowej to rozpoznanie DOM-u (kwestie otwarte 2 i 3), wymagające przeglądarki Playwright — a jest to **jedna współdzielona instancja**. Cztery agenty korzystające z niej równolegle zniszczyłyby sobie nawzajem sesje. Dlatego agent główny zbiera fixture'y HTML dla wszystkich czterech portali sam, szeregowo, zapisując je wprost do `internal/crawler/testdata/<portal>/`, a dopiero potem cztery implementacje parserów ruszają równolegle na zapisanych plikach, bez dostępu do przeglądarki.
+**Ograniczenie, które wymusza szeregowanie części pracy**: pierwszy krok każdej grupy portalowej to rozpoznanie DOM-u (kwestie otwarte 2 i 3), wymagające przeglądarki Playwright — a jest to **jedna współdzielona instancja**. Cztery agenty korzystające z niej równolegle zniszczyłyby sobie nawzajem sesje. Dlatego agent główny zbiera fixture'y HTML dla wszystkich czterech portali sam, szeregowo, zapisując je wprost do `internal/justjoin/testdata/<portal>/`, a dopiero potem cztery implementacje parserów ruszają równolegle na zapisanych plikach, bez dostępu do przeglądarki.

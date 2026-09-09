@@ -194,7 +194,7 @@ Ten stub implementuje `handlers.PossibilityStore` i jest przekazywany do `handle
 
 **Odniesienie:** spec §7.2 („`shm_size` **nie jest dodawane** — zastępuje je `chromedp.Flag("disable-dev-shm-usage", true)` w `newBrowser`"), §9.5 („domyślne `/dev/shm` = 64 MB przy ośmiu instancjach niemal gwarantuje awarie kart"), §11.1. Przesłanka odziedziczona z `scope-clarifications.md` („omija domyślne 64 MB `/dev/shm`") i `requirements.md` F7.
 
-**Dowód:** `internal/crawler/browser.go:21-24` buduje allokator przez `append(chromedp.DefaultExecAllocatorOptions[:], chromedp.NoSandbox)`. W `chromedp@v0.16.0`, `allocate.go:69`, `DefaultExecAllocatorOptions` zawiera już:
+**Dowód:** `internal/justjoin/browser.go:21-24` buduje allokator przez `append(chromedp.DefaultExecAllocatorOptions[:], chromedp.NoSandbox)`. W `chromedp@v0.16.0`, `allocate.go:69`, `DefaultExecAllocatorOptions` zawiera już:
 ```go
 Flag("disable-dev-shm-usage", true),
 ```
@@ -214,7 +214,7 @@ Flag("disable-dev-shm-usage", true),
 
 **Odniesienie:** spec §14, kryterium 24: „Grep po `chromedp` w `internal/handlers` i `cmd/web` nie daje trafień (stała placeholdera nie wciągnęła zależności przeglądarkowych do binarki web)".
 
-**Dowód:** grep po tekście źródłowym nie wykrywa zależności **tranzytywnej**. Gdyby `internal/handlers` zaimportowało `internal/crawler`, w plikach `internal/handlers` nadal nie padłoby słowo `chromedp` — a `chromedp` i tak trafiłby do binarki `cmd/web`. Kryterium przechodzi dziś i przeszłoby również w scenariuszu, przed którym ma chronić.
+**Dowód:** grep po tekście źródłowym nie wykrywa zależności **tranzytywnej**. Gdyby `internal/handlers` zaimportowało `internal/justjoin`, w plikach `internal/handlers` nadal nie padłoby słowo `chromedp` — a `chromedp` i tak trafiłby do binarki `cmd/web`. Kryterium przechodzi dziś i przeszłoby również w scenariuszu, przed którym ma chronić.
 
 **Kategoria:** Incorrect
 

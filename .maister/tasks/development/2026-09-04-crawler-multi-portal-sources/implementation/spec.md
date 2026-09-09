@@ -277,7 +277,7 @@ Zero nowej infrastruktury, zero zmian w montowaniach dla ścieżki migracji.
 
 `init: true` jest już ustawione (`docker-compose.yaml:54`) i przy 8 instancjach Chromium jest tym bardziej potrzebne.
 
-**Korekta po audycie (2026-09-04): `disable-dev-shm-usage` NIE jest dodawane.** Flaga jest już aktywna — `chromedp` ma ją w `DefaultExecAllocatorOptions` (`chromedp@v0.16.0/allocate.go:69`), do których `newBrowser` (`internal/crawler/browser.go:21-22`) jedynie dokleja własne opcje. Dopisanie jej byłoby martwym kodem, a ryzyko „domyślne 64 MB `/dev/shm`", na które powoływała się wcześniejsza analiza, **nie istnieje**. `shm_size` również nie jest potrzebne. Z decyzji o zasobach Chromium zostaje wyłącznie `mem_limit: 4g`.
+**Korekta po audycie (2026-09-04): `disable-dev-shm-usage` NIE jest dodawane.** Flaga jest już aktywna — `chromedp` ma ją w `DefaultExecAllocatorOptions` (`chromedp@v0.16.0/allocate.go:69`), do których `newBrowser` (`internal/justjoin/browser.go:21-22`) jedynie dokleja własne opcje. Dopisanie jej byłoby martwym kodem, a ryzyko „domyślne 64 MB `/dev/shm`", na które powoływała się wcześniejsza analiza, **nie istnieje**. `shm_size` również nie jest potrzebne. Z decyzji o zasobach Chromium zostaje wyłącznie `mem_limit: 4g`.
 
 ### 7.3 Kolejność kroków przy deployu na żywą bazę
 
@@ -391,7 +391,7 @@ Po regeneracji `internal/database/generated/querier.go`:
 Konsumenci deklarują wąskie interfejsy, więc łamią się **trzy** miejsca (korekta po audycie, 2026-09-04):
 
 - `internal/handlers/scraped_handler.go:14-16` — `PossibilityStore.ListPossibilitiesByCategory` musi zmienić typ zwracany.
-- `internal/crawler/persist.go:11-13` — `OfferStore` dostaje drugą metodę.
+- `internal/justjoin/persist.go:11-13` — `OfferStore` dostaje drugą metodę.
 - `internal/router/routing_test.go:118` — stub implementujący sklep w teście. **`go build` tego nie wykryje** — złamanie ujawnia dopiero `go test ./...`, więc weryfikacja po regeneracji `sqlc` musi obejmować budowanie testów, nie tylko binarek.
 
 `var _ Querier = (*Queries)(nil)` nadal się kompiluje. Warstwa web nie wymaga innych zmian.
@@ -404,7 +404,7 @@ Konsumenci deklarują wąskie interfejsy, więc łamią się **trzy** miejsca (k
 
 Zgodnie z `technical-clarifications.md` p. 3: interfejs deklarowany **u konsumenta**, wyłącznie z metodami, których ten konsument używa — idiom obecny w całym repo (`knownOfferStore` w `transformer.go:28`, `OfferStore` w `persist.go:11`, `IpRepository`/`SessionRepository` w `router/routing.go:50-58`).
 
-**W `internal/crawler/fetcher.go`:**
+**W `internal/justjoin/fetcher.go`:**
 
 ```go
 // LinkCollector odkrywa URL-e ofert na jednym listingu portalu. Dostaje kontekst
@@ -416,7 +416,7 @@ type LinkCollector interface {
 }
 ```
 
-**W `internal/crawler/transformer.go`:**
+**W `internal/justjoin/transformer.go`:**
 
 ```go
 // OfferParser wie, kiedy strona oferty danego portalu jest gotowa do zrzutu
@@ -443,10 +443,10 @@ Jeden plik `snake_case` na portal, zgodnie z idiomem `redis_ip_repository.go` / 
 
 | Plik | Zawiera | Mechanika listingu | `slices.Reverse` |
 |---|---|---|---|
-| `internal/crawler/justjoin_portal.go` | `JustjoinCollector`, `JustjoinParser` | infinite scroll (istniejąca) | **tak** |
-| `internal/crawler/nofluffjobs_portal.go` | `NofluffjobsCollector`, `NofluffjobsParser` | do ustalenia przy implementacji | **tak** |
-| `internal/crawler/bulldogjob_portal.go` | `BulldogjobCollector`, `BulldogjobParser` | paginacja, limit 3 stron / target / przebieg | **nie** |
-| `internal/crawler/solidjobs_portal.go` | `SolidjobsCollector`, `SolidjobsParser` | do ustalenia przy implementacji | **nie** |
+| `internal/justjoin/justjoin_portal.go` | `JustjoinCollector`, `JustjoinParser` | infinite scroll (istniejąca) | **tak** |
+| `internal/justjoin/nofluffjobs_portal.go` | `NofluffjobsCollector`, `NofluffjobsParser` | do ustalenia przy implementacji | **tak** |
+| `internal/justjoin/bulldogjob_portal.go` | `BulldogjobCollector`, `BulldogjobParser` | paginacja, limit 3 stron / target / przebieg | **nie** |
+| `internal/justjoin/solidjobs_portal.go` | `SolidjobsCollector`, `SolidjobsParser` | do ustalenia przy implementacji | **nie** |
 
 Konstruktory: `NewJustjoinCollector()`, `NewJustjoinParser()` itd. — zwykłe funkcje zwracające wskaźnik, bez wzorca Options, zgodnie z idiomem `New<Backend><Rzecz>`.
 
@@ -530,7 +530,7 @@ const Unparsed = "(unparsed)"
 
 `JobTitle = offer.Unparsed`, `CompanyName = offer.Unparsed`, reszta pól pusta, HTML zapisany normalnie.
 
-**Dlaczego osobny pakiet `internal/offer`, a nie stała w `internal/crawler`.** Stałą muszą znać crawler **i** `internal/handlers` (do ustawienia `possibilityRow.Unparsed`). Gdyby leżała w `internal/crawler`, `cmd/web` zaciągnąłby tranzytywnie `chromedp` — kilkadziesiąt MB zależności przeglądarkowych w binarce serwera HTTP. Pakiet z jedną stałą jest tańszy niż ta zależność. Wariant z literałem powtórzonym w `.gohtml` odrzucony w `technical-clarifications.md` p. 5 (rozjedzie się przy pierwszej zmianie brzmienia).
+**Dlaczego osobny pakiet `internal/offer`, a nie stała w `internal/justjoin`.** Stałą muszą znać crawler **i** `internal/handlers` (do ustawienia `possibilityRow.Unparsed`). Gdyby leżała w `internal/justjoin`, `cmd/web` zaciągnąłby tranzytywnie `chromedp` — kilkadziesiąt MB zależności przeglądarkowych w binarce serwera HTTP. Pakiet z jedną stałą jest tańszy niż ta zależność. Wariant z literałem powtórzonym w `.gohtml` odrzucony w `technical-clarifications.md` p. 5 (rozjedzie się przy pierwszej zmianie brzmienia).
 
 ### 9.4 Przepływ danych i typy
 
@@ -667,10 +667,10 @@ Wariant „N fetcherów pisze do jednego wspólnego kanału" jest **odrzucony**:
 
 ### 9.6 Throttling i limity
 
-Wszystkie cztery stałe throttlingu w **jednym bloku `const`**, w nowym pliku `internal/crawler/throttling.go`. Bez zmiennych środowiskowych (`scope-clarifications.md` → `throttling-config`).
+Wszystkie cztery stałe throttlingu w **jednym bloku `const`**, w nowym pliku `internal/justjoin/throttling.go`. Bez zmiennych środowiskowych (`scope-clarifications.md` → `throttling-config`).
 
 ```go
-// internal/crawler/throttling.go
+// internal/justjoin/throttling.go
 
 // Throttling. Kazde czekanie jest losowane na nowo, zeby crawl nie ukladal sie
 // w staly rytm, ktory portal moglby rozpoznac.
@@ -814,9 +814,9 @@ Szablon rozróżnia badge od myślnika idiomem `{{ if eq }}` z `offers/list.goht
 | `absoluteURL` | dziś `node.Attribute("href")` idzie prosto do bazy; nie ma żadnej normalizacji do ponownego użycia |
 | tabele `sources`, `scrape_targets`, `possibility_html` | pojęcie źródła nie istnieje w żadnej warstwie (`grep source` w całym repo: 3 trafienia, wszystkie nieistotne) |
 | `ListEnabledScrapeTargets`, `CreatePossibilityHtml` | brak jakiegokolwiek zapytania o źródła i o HTML |
-| `internal/offer` (jedna stała) | stałą muszą znać crawler i handlery; wspólne miejsce w `internal/crawler` wciągnęłoby `chromedp` do binarki web |
+| `internal/offer` (jedna stała) | stałą muszą znać crawler i handlery; wspólne miejsce w `internal/justjoin` wciągnęłoby `chromedp` do binarki web |
 | `internal/database/migrations/001_...sql`, `seed.sql` | dziś DDL to nadpisywany heredoc, a seedu nie ma w ogóle |
-| `internal/crawler/throttling.go` | cztery stałe są dziś rozrzucone po dwóch plikach |
+| `internal/justjoin/throttling.go` | cztery stałe są dziś rozrzucone po dwóch plikach |
 
 ### 11.3 Świadomie **nie**budowane
 
@@ -847,10 +847,10 @@ Wyłącznie stdlib `testing`, tabele `[]struct{name; ...; want}` + `t.Run`, ręc
 
 ### 13.1 Fixture'y HTML
 
-Nowa konwencja w repo (dziś nie istnieje): `internal/crawler/testdata/<portal>/<przypadek>.html`. Zawartość to realny, zapisany HTML oferty z danego portalu — pozyskany dokładnie tą drogą, którą zapisuje etap 1, więc fixture i produkcja widzą to samo.
+Nowa konwencja w repo (dziś nie istnieje): `internal/justjoin/testdata/<portal>/<przypadek>.html`. Zawartość to realny, zapisany HTML oferty z danego portalu — pozyskany dokładnie tą drogą, którą zapisuje etap 1, więc fixture i produkcja widzą to samo.
 
 ```
-internal/crawler/testdata/
+internal/justjoin/testdata/
     justjoin/{typical,no-date,no-stack,remote,unparsable}.html
     nofluffjobs/{typical,no-date,no-stack,remote,unparsable}.html
     bulldogjob/{typical,no-date,no-stack,remote,unparsable}.html
@@ -1002,7 +1002,7 @@ Rzeczy, których **nie dało się rozstrzygnąć** na podstawie zatwierdzonych a
 4. ~~**Czy podnieść `listingTimeout`.**~~ **ROZSTRZYGNIĘTE 2026-09-04 przez M5:** pytanie straciło sens w dotychczasowej formie. Skoro implementacja `LinkCollector` sama otwiera zakładki, budżet czasu należy do jednostki pracy (jedna strona paginacji albo jeden przewijany listing), a nie do całego targetu. Globalna stała `listingTimeout` znika, każda implementacja ustala własny budżet — patrz [9.6](#96-throttling-i-limity).
 5. **Recykling instancji Chromium co N ofert w transformerze.** `gap-analysis.md` 1.5 podniósł problem (jedna instancja żyjąca ~4 h przy nowym throttlingu), ale decyzja nie zapadła. Alternatywa: pozostawić jedną instancję na batch i polegać na `mem_limit` plus `restart: always`.
 6. **Rozmiar puli `pgxpool`.** `internal/postgres/client.go` nie konfiguruje `max_conns` jawnie; domyślnie `max(4, NumCPU)`. Cztery pipeline'y × (lookup w transformerze + zapis w persist) mogą wysycić pulę na małym VPS-ie. `gap-analysis.md` 4.1 zaleca sprawdzenie; wartość nie została ustalona.
-7. ~~**Brzmienie i lokalizacja stałej placeholdera.**~~ **ROZSTRZYGNIĘTE 2026-09-04:** `internal/offer.Unparsed = "(unparsed)"` — nowy minimalny pakiet `internal/offer` z jedną stałą, konieczny by uniknąć zależności `internal/handlers` → `internal/crawler` (wciągnęłaby `chromedp` do binarki `cmd/web`).
+7. ~~**Brzmienie i lokalizacja stałej placeholdera.**~~ **ROZSTRZYGNIĘTE 2026-09-04:** `internal/offer.Unparsed = "(unparsed)"` — nowy minimalny pakiet `internal/offer` z jedną stałą, konieczny by uniknąć zależności `internal/handlers` → `internal/justjoin` (wciągnęłaby `chromedp` do binarki `cmd/web`).
 8. ~~**Czy backfill `possibilities.source_id` wchodzi w to wdrożenie.**~~ **ROZSTRZYGNIĘTE 2026-09-04: tak, w tym samym wdrożeniu.** Krok 6 runbooka wykonuje się teraz — idempotentny `UPDATE` z guardem `url LIKE 'https://justjoin.it/%'`. Kolumna `Source` jest sensowna od pierwszego dnia, bez okresu przejściowego z `-` dla całej historycznej bazy.
 9. ~~**Nazwy slugów w `sources`.**~~ **ROZSTRZYGNIĘTE 2026-09-04:** `justjoin`, `nofluffjobs`, `bulldogjob`, `solidjobs` — bez kropek, wygodne jako klucze map `map[string]LinkCollector` / `map[string]OfferParser` w `main()`. Nazwy wyświetlane pozostają pełne (`justjoin.it`, `nofluffjobs.com`, `bulldogjob.pl`, `solid.jobs`) i to one trafiają do kolumny `Source`. Uwaga utrzymaniowa bez zmian: slug żyje w bazie i w kodzie, więc jego zmiana wymaga `UPDATE` **i** rekompilacji.
 

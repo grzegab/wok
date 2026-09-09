@@ -4,7 +4,7 @@ Data: 2026-09-04
 Metoda: realna przeglądarka (Playwright), listing + strona oferty każdego portalu.
 Zamyka **kwestie otwarte 2 i 3** ze specyfikacji (mechanika listingu i selektory gotowości).
 
-Fixture'y: `internal/crawler/testdata/<portal>/typical.html` — surowy `outerHTML` po wyrenderowaniu, z usuniętymi `<script>`, `<style>` i `<link>` (parsery czytają DOM, nie payloady frameworka; usunięcie zmniejszyło pliki 3-8×).
+Fixture'y: `internal/justjoin/testdata/<portal>/typical.html` — surowy `outerHTML` po wyrenderowaniu, z usuniętymi `<script>`, `<style>` i `<link>` (parsery czytają DOM, nie payloady frameworka; usunięcie zmniejszyło pliki 3-8×).
 
 ---
 
@@ -104,7 +104,7 @@ Zweryfikowane: `document.querySelectorAll('script[type="application/ld+json"]')`
 
 **Decyzja użytkownika (2026-09-04):** dla NoFluffJobs crawler wykonuje dodatkowo jedno lekkie `http.Get` po surowy HTML serwera i z niego wyciąga `@graph` → `JobPosting`. Podwaja liczbę żądań do tego jednego portalu, ale przy pauzie 2-3 min na ofertę tempo pozostaje bardzo zachowawcze, a żądanie jest tanie (bez renderowania).
 
-Fixture dla tej ścieżki: `internal/crawler/testdata/nofluffjobs/typical-server.html` (surowy HTML serwera, 149 KB, zawiera blok `ld+json`). Fixture `typical.html` pozostaje **wiernym** zrzutem wyrenderowanego DOM-u — celowo **bez** `ld+json`, bo tak wygląda rzeczywistość widziana przez chromedp.
+Fixture dla tej ścieżki: `internal/justjoin/testdata/nofluffjobs/typical-server.html` (surowy HTML serwera, 149 KB, zawiera blok `ld+json`). Fixture `typical.html` pozostaje **wiernym** zrzutem wyrenderowanego DOM-u — celowo **bez** `ld+json`, bo tak wygląda rzeczywistość widziana przez chromedp.
 
 ## Wynikający kontrakt parsera
 

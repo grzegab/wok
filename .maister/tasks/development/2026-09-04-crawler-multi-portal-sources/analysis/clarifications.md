@@ -23,7 +23,7 @@ Kształt: `possibility_html(possibility_id PK/FK → possibilities, html TEXT, f
 
 Uzasadnienie: `possibilities` zostaje szczupłe, więc lista ofert (`ListPossibilitiesByCategory`) i statystyki (`StatsPossibilityByCategory`) nie ciągną blobów. HTML da się kasować niezależnie od metadanych oferty.
 
-**Konsekwencja:** zapis oferty przestaje być pojedynczym `INSERT` — potrzebna transakcja (`WithTx` w `internal/database/generated/db.go` już istnieje i jest dziś nieużywane) albo drugi zapis po `RETURNING id`. Timeout `3 * time.Second` w `internal/crawler/persist.go` jest za ciasny dla zapisu setek KB i wymaga podniesienia.
+**Konsekwencja:** zapis oferty przestaje być pojedynczym `INSERT` — potrzebna transakcja (`WithTx` w `internal/database/generated/db.go` już istnieje i jest dziś nieużywane) albo drugi zapis po `RETURNING id`. Timeout `3 * time.Second` w `internal/justjoin/persist.go` jest za ciasny dla zapisu setek KB i wymaga podniesienia.
 
 ## 3. Słowa kluczowe
 

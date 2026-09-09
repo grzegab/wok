@@ -10,7 +10,7 @@
 - **Poziom ryzyka**: Wysoki
 - **Szacowany nakład**: Wysoki
 - **Wykryte charakterystyki**: `modifies_existing_code`, `creates_new_entities`, `involves_data_operations`, `ui_heavy` (częściowo)
-- **Typ zmiany**: mieszany — `additive` w schemacie (nowe tabele + kolumna, bez ruszania `UNIQUE (url)`), `refactor-based` w `internal/crawler` (rozcięcie `scrapeOffer` na seam pobranie/parsowanie bez zmiany zachowania dla justjoin.it), `modificative` w throttlingu i w kolejności listingu.
+- **Typ zmiany**: mieszany — `additive` w schemacie (nowe tabele + kolumna, bez ruszania `UNIQUE (url)`), `refactor-based` w `internal/justjoin` (rozcięcie `scrapeOffer` na seam pobranie/parsowanie bez zmiany zachowania dla justjoin.it), `modificative` w throttlingu i w kolejności listingu.
 - **Wymagania kompatybilności**: **strict** dla ścieżki dedupu po URL i dla istniejących widoków `/scr4p3d/{category}` i `/st4ts/{category}`; moderate dla reszty.
 
 Kluczowe ustalenie tej fazy, którego nie było w analizie kodu: **`possibilities.category` przechowuje nazwę wyświetlaną (`Name`), a nie slug**. Crawler zapisuje `cat.Name` (`fetcher.go:73`), a oba handlery web odpytują po `cat.Name` (`scraped_handler.go:55`, `stats_handler.go:53`). Tymczasem `analysis/approved-urls.md` kluczuje 21 wierszy `scrape_targets` po slugach (`go`, `php`, `architect`, `ai-ml`, `c`). Jeżeli crawler zacznie zapisywać slug, **wszystkie istniejące wiersze znikną z UI bez żadnego błędu** — listy po prostu pokażą „No scraped offers yet.".
@@ -22,7 +22,7 @@ Kluczowe ustalenie tej fazy, którego nie było w analizie kodu: **`possibilitie
 | Charakterystyka | Wartość | Dowód |
 |---|---|---|
 | `has_reproducible_defect` | **nie** | Brak opisu awarii, stack trace'u ani scenariusza błędu. To rozbudowa, nie naprawa. |
-| `modifies_existing_code` | **tak** | Zmieniane: `internal/crawler/{fetcher,transformer,persist}.go`, `internal/category/category.go`, `internal/database/{schema.sql,queries/possibilities.sql}`, `cmd/crawler/main.go`, `scripts/deploy.sh`. |
+| `modifies_existing_code` | **tak** | Zmieniane: `internal/justjoin/{fetcher,transformer,persist}.go`, `internal/category/category.go`, `internal/database/{schema.sql,queries/possibilities.sql}`, `cmd/crawler/main.go`, `scripts/deploy.sh`. |
 | `creates_new_entities` | **tak** | Nowe encje: `sources`, `scrape_targets`, `possibility_html`, `possibilities.source_id`; nowe pliki ekstraktorów per portal. |
 | `involves_data_operations` | **tak** | CREATE/READ na `possibilities` i `possibility_html`; CREATE/READ/UPDATE (`enabled`)/DELETE na `sources`/`scrape_targets`. |
 | `ui_heavy` | **częściowo (tak)** | Zadanie samo nie zleca zmian UI, ale dodanie 3 portali zmienia zawartość istniejącego widoku `internal/templates/scraped/list.gohtml` (~4× więcej wierszy, brak informacji o pochodzeniu) oraz agregację w `stats/stats.gohtml`. Analiza UI wykonana, decyzja o zakresie poniżej. |
@@ -83,7 +83,7 @@ Kluczowe ustalenie tej fazy, którego nie było w analizie kodu: **`possibilitie
 
 **Wariant alternatywny (kategorie z bazy) kosztuje znacznie więcej:** `templates.funcs` to zmienna pakietowa inicjalizowana przy starcie pakietu (`parse.go:12-14`), więc zasilenie jej z bazy wymaga zmiany sygnatury `templates.Parse` i przewleczenia listy przez **5 wywołań** w `cmd/web/main.go:69-97`, a `cmd/web` musiałby czytać `scrape_targets` tylko po to, żeby narysować menu. To narusza `minimal-implementation.md` („No Speculative Abstractions") — kategorii jest 5 i nie zmieniają się.
 
-### 1.4 Fetcher (`internal/crawler/fetcher.go`)
+### 1.4 Fetcher (`internal/justjoin/fetcher.go`)
 
 | | Stan obecny | Stan docelowy |
 |---|---|---|
@@ -105,7 +105,7 @@ Kluczowe ustalenie tej fazy, którego nie było w analizie kodu: **`possibilitie
 **Wymóg**: normalizacja do absolutnego URL-a przy zbieraniu linków — i **ta sama** postać URL-a musi trafić do `ExistingPossibilityUrls` i do `CreatePossibility`. To jedyna twarda zasada chroniąca dedup.
 **Do zweryfikowania na produkcji przed implementacją**: czy istniejące wiersze justjoin.it mają URL-e absolutne (`SELECT url FROM possibilities LIMIT 5`). Jeśli są relatywne, jakakolwiek normalizacja **utworzy duplikaty** wszystkich istniejących ofert i musi iść w parze z jednorazowym `UPDATE`.
 
-### 1.5 Transformer (`internal/crawler/transformer.go`)
+### 1.5 Transformer (`internal/justjoin/transformer.go`)
 
 | | Stan obecny | Stan docelowy |
 |---|---|---|
@@ -124,7 +124,7 @@ Kluczowe ustalenie tej fazy, którego nie było w analizie kodu: **`possibilitie
 - **Ciche `""` przy zepsutym selektorze** (komentarz `:150-152`) — świadomy kompromis przy 1 portalu, przy 4 zamienia się w niewykrywalną degradację. Zgodnie z `error-handling.md` ekstraktory powinny **logować** brak oczekiwanego pola.
 - **Czas życia przeglądarki**: `transformBatch` trzyma jeden Chromium na cały batch (`:62-67`). Przy 2-3 min/oferta i 50 ofertach w batchu to **2-2,5 godziny** jednej instancji Chromium. Dziś to 5-10 minut. Wyciek pamięci Chromium staje się realny — do rozważenia recykling przeglądarki co N ofert.
 
-### 1.6 Persist (`internal/crawler/persist.go`)
+### 1.6 Persist (`internal/justjoin/persist.go`)
 
 | | Stan obecny | Stan docelowy |
 |---|---|---|

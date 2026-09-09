@@ -19,11 +19,11 @@ Największy koszt to punkt (b) — wprowadzenie warstwy strategii per-portal wym
 
 ### Pliki główne
 
-**`internal/crawler/transformer.go`** (266 linii)
+**`internal/justjoin/transformer.go`** (266 linii)
 - Etap 2 pipeline'u: filtruje znane URL-e (`unseen`), otwiera przeglądarkę per batch, scrapuje każdą ofertę (`scrapeOffer`), emituje `database.CreatePossibilityParams` na kanał `Offers`.
 - **Epicentrum zmiany.** Zawiera 100% selektorów specyficznych dla justjoin.it (h1/h2, XPath "Job description", XPath "Tech stack", regex `(?:Published|Opublikowano)`), monolityczny `chromedp.Run` bez seamu do parsowania, stałe throttlingu (`minOfferPause`, `maxOfferPause`, `offerTimeout`) oraz jedyne miejsce, w którym powstaje literał `CreatePossibilityParams{...}` — czyli miejsce, gdzie trzeba dodać `Source`, `RawHtml`, `Keywords`.
 
-**`internal/crawler/fetcher.go`** (213 linii)
+**`internal/justjoin/fetcher.go`** (213 linii)
 - Etap 1: pętla przebiegów, przeglądarka per przebieg, zakładka per listing, scroll + zbieranie linków.
 - Zawiera stałe `frequency` (2h), `maxFrequencyJitter` (1h) — bezpośredni cel punktu (d). Zawiera selektor `.offer-card` (linia 204) oraz założenie o wirtualizowanym infinite-scrollu i sortowaniu newest-first (`slices.Reverse`, linia 110) — wszystko specyficzne dla justjoin.it, wszystko musi trafić za interfejs strategii.
 
@@ -46,10 +46,10 @@ Największy koszt to punkt (b) — wprowadzenie warstwy strategii per-portal wym
 
 ### Pliki powiązane
 
-**`internal/crawler/browser.go`** (55 linii)
+**`internal/justjoin/browser.go`** (55 linii)
 - `newBrowser` / `newTab` — helpery chromedp współdzielone przez fetcher i transformer. Portal-agnostyczne, do ponownego użycia bez zmian. Miejsce ewentualnego dodania User-Agenta (dziś nie ustawia się żadnego).
 
-**`internal/crawler/persist.go`** (41 linii)
+**`internal/justjoin/persist.go`** (41 linii)
 - Etap 3, interfejs `OfferStore` z jedną metodą. Timeout `3 * time.Second` na insert — **wymaga rewizji** przy zapisie surowego HTML-a (setki KB).
 
 **`internal/database/generated/*`** (models.go, querier.go, possibilities.sql.go, db.go)
@@ -64,7 +64,7 @@ Największy koszt to punkt (b) — wprowadzenie warstwy strategii per-portal wym
 **`internal/repository/redis_ip_repository.go`, `in_memory_ip_repository.go`, `redis_session_repository.go`, `in_memory_session_repository.go`**
 - Nie są modyfikowane, ale stanowią **najlepszy wzorzec w repo** dla warstwy strategii per-portal (interfejs u konsumenta + jeden plik na implementację + `New<X>(...)` + wiring w `main()`).
 
-**`internal/crawler/transformer_test.go`** (73 linii)
+**`internal/justjoin/transformer_test.go`** (73 linii)
 - Jedyny test w pakiecie crawler. Pokrywa wyłącznie `optDate` i `unseen` (przez stub `stubKnownOffers`). `scrapeOffer` jest **nietestowany**.
 
 ---
@@ -151,7 +151,7 @@ Headless Chromium przez **`chromedp`** (`github.com/chromedp/chromedp`), nie `ne
 - **`internal/handlers/scraped_handler.go`**: `ListPossibilitiesByCategory` → projekcja na `possibilityRow{Url, JobTitle, Tech, Published}`. Brak filtra po źródle.
 - **`internal/handlers/stats_handler.go`**: `StatsPossibilityByCategory` (agregacja `tech`) — nieczuły na nowe kolumny.
 - **`internal/templates/scraped/list.gohtml`**: kolumny Title / Published / Technologies / URL.
-- **`internal/crawler/persist.go`, `transformer.go`**: ścieżka zapisu.
+- **`internal/justjoin/persist.go`, `transformer.go`**: ścieżka zapisu.
 
 **Liczba konsumentów**: 4 pliki dla `category`, 4 pliki dla `possibilities` (7 unikalnych).
 **Zasięg wpływu**: **Średni-Wysoki** — zmiana dotyka obu binarek (`cmd/crawler` i `cmd/web`), warstwy szablonów oraz schematu bazy produkcyjnej. Nigdzie nie ma mapowania `SELECT *` na ręczne struktury, więc dodanie kolumn jest bezpieczne w czasie kompilacji — ryzyko leży w migracji i w wiring-u, nie w typach.
@@ -162,7 +162,7 @@ Headless Chromium przez **`chromedp`** (`github.com/chromedp/chromedp`), nie `ne
 
 ### Pliki testowe
 
-- **`internal/crawler/transformer_test.go`**: `TestOptDate` (tabelaryczny), `TestUnseen` (przez stub `stubKnownOffers`). Nie dotyka ani chromedp, ani prawdziwego SQL-a.
+- **`internal/justjoin/transformer_test.go`**: `TestOptDate` (tabelaryczny), `TestUnseen` (przez stub `stubKnownOffers`). Nie dotyka ani chromedp, ani prawdziwego SQL-a.
 - **`internal/repository/in_memory_session_repository_test.go`**, **`redis_session_repository_test.go`**: repozytoria sesji; ten drugi robi `t.Skipf` gdy Redis nieosiągalny.
 - **`internal/router/routing_test.go`**, **`auth_middleware_test.go`**: routing i middleware auth.
 
@@ -266,9 +266,9 @@ Cztery podzadania o bardzo różnym profilu, spięte wspólnym wymogiem zmiany s
 ### Zmiany główne
 
 - `internal/category/category.go` — przebudowa lub zastąpienie modelem ładowanym z bazy; dodanie dyskryminatora portalu.
-- `internal/crawler/fetcher.go` — dispatch strategii dla odkrywania linków; nowe stałe/konfiguracja `frequency`; przewleczenie identyfikatora portalu przez `FetchedOffers`.
-- `internal/crawler/transformer.go` — wyjęcie ekstrakcji justjoin.it do osobnej strategii; dispatch per portal; nowe pauzy; przechwycenie raw HTML; wypełnienie `Source`/`RawHtml`/`Keywords`.
-- **Nowe pliki**: `internal/crawler/justjoin_scraper.go`, `nofluffjobs_scraper.go`, `bulldogjob_scraper.go`, `solidjobs_scraper.go` (snake_case, po jednym na portal, zgodnie z idiomem repozytorium).
+- `internal/justjoin/fetcher.go` — dispatch strategii dla odkrywania linków; nowe stałe/konfiguracja `frequency`; przewleczenie identyfikatora portalu przez `FetchedOffers`.
+- `internal/justjoin/transformer.go` — wyjęcie ekstrakcji justjoin.it do osobnej strategii; dispatch per portal; nowe pauzy; przechwycenie raw HTML; wypełnienie `Source`/`RawHtml`/`Keywords`.
+- **Nowe pliki**: `internal/justjoin/justjoin_scraper.go`, `nofluffjobs_scraper.go`, `bulldogjob_scraper.go`, `solidjobs_scraper.go` (snake_case, po jednym na portal, zgodnie z idiomem repozytorium).
 - `internal/database/schema.sql` — tabela źródeł + kolumny `source`/`raw_html`/`keywords` w `possibilities`.
 - `internal/database/queries/possibilities.sql` — rozszerzenie `CreatePossibility` o nowe kolumny (**bez ruszania `ON CONFLICT (url)` i `ExistingPossibilityUrls`**); nowy plik zapytań dla źródeł.
 - `internal/database/generated/*` — regeneracja przez `make sqlc`.
@@ -278,7 +278,7 @@ Cztery podzadania o bardzo różnym profilu, spięte wspólnym wymogiem zmiany s
 ### Zmiany powiązane
 
 - `internal/handlers/helper.go`, `stats_handler.go`, `scraped_handler.go`; `internal/templates/parse.go` — dostosowanie do źródeł ładowanych z bazy zamiast `category.All`.
-- `internal/crawler/persist.go` — rewizja timeoutu 3 s pod zapis raw HTML.
+- `internal/justjoin/persist.go` — rewizja timeoutu 3 s pod zapis raw HTML.
 - `internal/config/loader.go` + `.env.default` + `docker-compose.yaml` — jeśli throttling ma być konfigurowalny.
 - `internal/templates/scraped/list.gohtml`, `partials/categorynav.gohtml` — opcjonalna kolumna/filtr źródła (**raw HTML nie może trafić do listy**).
 - `.maister/docs/project/tech-stack.md` — poprawienie nieaktualnych zapisów.

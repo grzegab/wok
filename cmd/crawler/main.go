@@ -10,8 +10,8 @@ import (
 
 	"github.com/grzegab/wok/internal/category"
 	"github.com/grzegab/wok/internal/config"
-	"github.com/grzegab/wok/internal/crawler"
 	database "github.com/grzegab/wok/internal/database/generated"
+	"github.com/grzegab/wok/internal/justjoin"
 	"github.com/grzegab/wok/internal/postgres"
 )
 
@@ -39,17 +39,17 @@ func main() {
 	// start crawler
 	wg := sync.WaitGroup{}
 
-	cr := crawler.NewOfferFetcher(category.All)
+	cr := justjoin.NewOfferFetcher(category.All)
 	wg.Go(func() {
 		cr.Fetch(ctx)
 	})
 
-	ot := crawler.NewOfferTransformer(db)
+	ot := justjoin.NewOfferTransformer(db)
 	wg.Go(func() {
 		ot.Transform(ctx, cr.FetchedUrls)
 	})
 
-	op := crawler.NewOfferPersist(db)
+	op := justjoin.NewOfferPersist(db)
 	wg.Go(func() {
 		op.Persist(ot.Offers)
 	})

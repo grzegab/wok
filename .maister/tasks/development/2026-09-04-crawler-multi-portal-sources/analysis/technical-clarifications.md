@@ -12,7 +12,7 @@ Limit jest **niezależny** od limitu 3 stron listingu dla Bulldogjob — tamten 
 
 Konsekwencja: backfill 22 targetów rozłoży się na kilka dni. To stan przejściowy, świadomie zaakceptowany.
 
-## 2. Timeout zapisu w `internal/crawler/persist.go`: **60 s**
+## 2. Timeout zapisu w `internal/justjoin/persist.go`: **60 s**
 
 Dziś `3 * time.Second` (`persist.go:34`).
 
@@ -22,8 +22,8 @@ Uzasadnienie wyboru dużego zapasu: timeout praktycznie przestaje być przyczyn�
 
 ## 3. Ekstraktor per portal: **dwa wąskie interfejsy u konsumentów**
 
-- `linkCollector` w `internal/crawler/fetcher.go` — odkrywanie URL-i ofert z listingu (infinite scroll dla justjoin.it, paginacja dla Bulldogjob, do ustalenia dla NoFluffJobs i solid.jobs).
-- `offerParser` w `internal/crawler/transformer.go` — parsowanie pól oferty.
+- `linkCollector` w `internal/justjoin/fetcher.go` — odkrywanie URL-i ofert z listingu (infinite scroll dla justjoin.it, paginacja dla Bulldogjob, do ustalenia dla NoFluffJobs i solid.jobs).
+- `offerParser` w `internal/justjoin/transformer.go` — parsowanie pól oferty.
 
 Zgodne z idiomem obecnym w całym repo: `knownOfferStore` (`transformer.go:28`), `OfferStore` (`persist.go:11`), `IpRepository`/`SessionRepository` (`router/routing.go:50-58`) — interfejs deklarowany u konsumenta, wyłącznie z metodami, których ten konsument używa.
 

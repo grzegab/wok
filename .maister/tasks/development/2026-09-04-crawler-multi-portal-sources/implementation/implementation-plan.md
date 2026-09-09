@@ -153,14 +153,14 @@ Dwie sprzeczności wewnętrzne wykryte przy planowaniu. Żadnej **nie zgadujemy*
 ### Grupa 4: Warstwa `sqlc` i trzej konsumenci
 
 **Dependencies:** 2 (`sqlc` czyta `schema.sql`)
-**Files to Modify:** `internal/database/queries/sources.sql` (nowy), `internal/database/queries/possibilities.sql`, `internal/database/generated/**` (regeneracja), `internal/handlers/scraped_handler.go`, `internal/crawler/persist.go`, `internal/router/routing_test.go`
+**Files to Modify:** `internal/database/queries/sources.sql` (nowy), `internal/database/queries/possibilities.sql`, `internal/database/generated/**` (regeneracja), `internal/handlers/scraped_handler.go`, `internal/justjoin/persist.go`, `internal/router/routing_test.go`
 **Estimated Steps:** 7
 **Testy:** 2 asercje kompilacyjne + pełne `go test ./...` jako bramka regresji
 
 - [ ] 4.0 Przenieść warstwę zapytań na model wieloportalowy bez regresji dedupu
   - [ ] 4.1 Dodać dwie asercje kompilacyjne **przed** regeneracją
     - `var _ PossibilityStore = (*database.Queries)(nil)` w `internal/handlers`
-    - `var _ OfferStore = (*database.Queries)(nil)` w `internal/crawler`
+    - `var _ OfferStore = (*database.Queries)(nil)` w `internal/justjoin`
     - Reuse: idiom `var _ Querier = (*Queries)(nil)` już obecny w `internal/database/generated`
     - Powód: rozjazd wąskiego interfejsu z generowanym kodem ma wywalić się w miejscu deklaracji, a nie dopiero przy budowaniu testów
   - [ ] 4.2 Utworzyć `internal/database/queries/sources.sql`
@@ -179,7 +179,7 @@ Dwie sprzeczności wewnętrzne wykryte przy planowaniu. Żadnej **nie zgadujemy*
   - [ ] 4.5 Zregenerować: `make sqlc` (nie `make sqlc-generate` — ten target nie istnieje)
   - [ ] 4.6 Naprawić **trzech** konsumentów
     - `internal/handlers/scraped_handler.go:14-16` — `PossibilityStore.ListPossibilitiesByCategory` zwraca `[]database.ListPossibilitiesByCategoryRow`
-    - `internal/crawler/persist.go:11-13` — `OfferStore` dostaje `CreatePossibilityHtml`
+    - `internal/justjoin/persist.go:11-13` — `OfferStore` dostaje `CreatePossibilityHtml`
     - `internal/router/routing_test.go:118` — stub sklepu w teście
   - [ ] 4.7 Zweryfikować przez `go vet ./...` **i `go test ./...`**
     - **`go build ./...` nie wystarcza** — złamanie `routing_test.go:118` ujawnia się dopiero przy budowaniu testów (ustalenie M1)
@@ -195,22 +195,22 @@ Dwie sprzeczności wewnętrzne wykryte przy planowaniu. Żadnej **nie zgadujemy*
 ### Grupa 5: Rdzeń crawlera — kontrakty, seam pobranie/parsowanie, throttling
 
 **Dependencies:** brak — **ścieżka równoległa, może startować razem z grupą 1**
-**Files to Modify:** `internal/crawler/fetcher.go` (interfejs `LinkCollector`, `absoluteURL`, helpery pakietu), `internal/crawler/transformer.go` (interfejs `OfferParser`, `ParsedOffer`, `fetchOfferHTML`), `internal/crawler/throttling.go` (nowy), `internal/crawler/fetcher_test.go` (nowy), `internal/offer/placeholder.go` (nowy). **`fetcher.go` i `transformer.go` są współdzielone z grupą 6** — grupa 6 startuje dopiero po zamknięciu tej.
+**Files to Modify:** `internal/justjoin/fetcher.go` (interfejs `LinkCollector`, `absoluteURL`, helpery pakietu), `internal/justjoin/transformer.go` (interfejs `OfferParser`, `ParsedOffer`, `fetchOfferHTML`), `internal/justjoin/throttling.go` (nowy), `internal/justjoin/fetcher_test.go` (nowy), `internal/offer/placeholder.go` (nowy). **`fetcher.go` i `transformer.go` są współdzielone z grupą 6** — grupa 6 startuje dopiero po zamknięciu tej.
 **Estimated Steps:** 9
 **Testy:** 6 (`TestAbsoluteURL`, sześć przypadków tabelarycznych)
 
 - [x] 5.0 Postawić kontrakty, na których oprą się cztery portale
-  - [x] 5.1 Napisać `TestAbsoluteURL` w `internal/crawler/fetcher_test.go`
+  - [x] 5.1 Napisać `TestAbsoluteURL` w `internal/justjoin/fetcher_test.go`
     - href relatywny od korzenia (`/job-offers/x`)
     - href relatywny względem ścieżki listingu
     - href już absolutny (zwracany bez zmian)
     - **href z query stringiem i fragmentem — muszą zostać zachowane** (wariant A decyzji `url-canonicalization`, kryterium 23)
     - href z literalnym `+` w ścieżce (`/pl/c++`)
     - href pusty / niedający się rozwinąć → błąd, wywołujący pomija z logiem, **bez panic**
-    - Reuse: idiom testów tabelarycznych ze `internal/crawler/transformer_test.go`, nazwy podtestów jako zdania po angielsku
+    - Reuse: idiom testów tabelarycznych ze `internal/justjoin/transformer_test.go`, nazwy podtestów jako zdania po angielsku
   - [x] 5.2 Utworzyć `internal/offer/placeholder.go` z jedną stałą `Unparsed = "(unparsed)"`
-    - Osobny pakiet, żeby `cmd/web` nie wciągnął `chromedp` przez `internal/crawler`
-  - [x] 5.3 Utworzyć `internal/crawler/throttling.go` z dwoma blokami `const`
+    - Osobny pakiet, żeby `cmd/web` nie wciągnął `chromedp` przez `internal/justjoin`
+  - [x] 5.3 Utworzyć `internal/justjoin/throttling.go` z dwoma blokami `const`
     - `listingInterval = 4h`, `maxListingJitter = 1h`, `minOfferPause = 2min`, `maxOfferPause = 3min`
     - `maxOffersPerPass = 100`, `maxListingPages = 3`
     - Usunąć stare `frequency`/`maxFrequencyJitter` z `fetcher.go:16-17` i stałe z `transformer.go:20-21`
@@ -228,7 +228,7 @@ Dwie sprzeczności wewnętrzne wykryte przy planowaniu. Żadnej **nie zgadujemy*
     - **Zakaz `chromedp.Text` dla pól obowiązkowych** — blokuje do `offerTimeout` i traci HTML dokładnie tam, gdzie jest najcenniejszy
     - Błąd zwracany wyłącznie, gdy nie udało się pobrać żadnego HTML-a; `%w` przy opakowaniu błędów chromedp
   - [x] 5.8 Zadeklarować `ParsedOffer` wg §9.3 (`Tech` rozdzielane `", "`, `PostedAt` ISO `YYYY-MM-DD` albo `""`)
-  - [x] 5.9 Uruchomić **tylko** nowe testy: `go test ./internal/crawler/ -run TestAbsoluteURL` oraz `go list -deps ./cmd/web | grep chromedp` (oczekiwane zero trafień)
+  - [x] 5.9 Uruchomić **tylko** nowe testy: `go test ./internal/justjoin/ -run TestAbsoluteURL` oraz `go list -deps ./cmd/web | grep chromedp` (oczekiwane zero trafień)
 
 **Acceptance Criteria:**
 - Sześć przypadków `TestAbsoluteURL` przechodzi; query string i fragment zachowane (kryterium 23)
@@ -242,7 +242,7 @@ Dwie sprzeczności wewnętrzne wykryte przy planowaniu. Żadnej **nie zgadujemy*
 ### Grupa 6: Pipeline — fetcher, transformer, persist
 
 **Dependencies:** 4, 5
-**Files to Modify:** `internal/crawler/fetcher.go`, `internal/crawler/transformer.go`, `internal/crawler/persist.go`, `internal/crawler/transformer_test.go`, `internal/category/category.go`
+**Files to Modify:** `internal/justjoin/fetcher.go`, `internal/justjoin/transformer.go`, `internal/justjoin/persist.go`, `internal/justjoin/transformer_test.go`, `internal/category/category.go`
 **Estimated Steps:** 7
 **Testy:** 6 (`TestUnseen` rozszerzony ×2, `TestOffersPerPassLimit` ×2, `TestTargetRotation` ×2)
 
@@ -274,7 +274,7 @@ Dwie sprzeczności wewnętrzne wykryte przy planowaniu. Żadnej **nie zgadujemy*
     - Timeout zapisu **3 s → 60 s**; dwa `INSERT`-y bez transakcji (`WithTx` zostaje nieużywane)
     - `CreatePossibility` → `saved.ID` → `CreatePossibilityHtml(saved.ID, html)`; błąd drugiego `INSERT`-u = log, oferta zostaje
     - Opakowywanie błędów `%w`
-  - [ ] 6.7 Uruchomić **tylko** testy tej grupy: `go test ./internal/crawler/ -run 'TestUnseen|TestOffersPerPassLimit|TestTargetRotation'`
+  - [ ] 6.7 Uruchomić **tylko** testy tej grupy: `go test ./internal/justjoin/ -run 'TestUnseen|TestOffersPerPassLimit|TestTargetRotation'`
 
 **Acceptance Criteria:**
 - Sześć testów tej grupy przechodzi; `TestOptDate` z `transformer_test.go` nadal przechodzi bez zmian
@@ -289,7 +289,7 @@ Dwie sprzeczności wewnętrzne wykryte przy planowaniu. Żadnej **nie zgadujemy*
 ### Grupa 7: Portal justjoin.it (przepisanie)
 
 **Dependencies:** 5
-**Files to Modify:** `internal/crawler/justjoin_portal.go` (nowy), `internal/crawler/justjoin_portal_test.go` (nowy), `internal/crawler/testdata/justjoin/{typical,no-date,no-stack,remote,unparsable}.html` (nowe)
+**Files to Modify:** `internal/justjoin/justjoin_portal.go` (nowy), `internal/justjoin/justjoin_portal_test.go` (nowy), `internal/justjoin/testdata/justjoin/{typical,no-date,no-stack,remote,unparsable}.html` (nowe)
 **Estimated Steps:** 6
 **Testy:** 5 (`TestJustjoinParseOffer`, pięć przypadków)
 
@@ -314,7 +314,7 @@ Dwie sprzeczności wewnętrzne wykryte przy planowaniu. Żadnej **nie zgadujemy*
     - Infinite scroll przez helpery pakietu z kroku 5.6; **własna zakładka** przez `newTab` z lokalnym budżetem czasu
     - `absoluteURL(...)` na każdy href; href nierozwijalny pomijany z logiem
     - **`slices.Reverse` — TAK** (listing posortowany newest-first przez `?orderBy=DESC&sortBy=newest`)
-  - [ ] 7.6 `go test ./internal/crawler/ -run TestJustjoinParseOffer`
+  - [ ] 7.6 `go test ./internal/justjoin/ -run TestJustjoinParseOffer`
 
 **Acceptance Criteria:**
 - 5 testów przechodzi (część kryterium 22)
@@ -326,7 +326,7 @@ Dwie sprzeczności wewnętrzne wykryte przy planowaniu. Żadnej **nie zgadujemy*
 ### Grupa 8: Portal nofluffjobs.com
 
 **Dependencies:** 5
-**Files to Modify:** `internal/crawler/nofluffjobs_portal.go` (nowy), `internal/crawler/nofluffjobs_portal_test.go` (nowy), `internal/crawler/testdata/nofluffjobs/{typical,no-date,no-stack,remote,unparsable}.html` (nowe)
+**Files to Modify:** `internal/justjoin/nofluffjobs_portal.go` (nowy), `internal/justjoin/nofluffjobs_portal_test.go` (nowy), `internal/justjoin/testdata/nofluffjobs/{typical,no-date,no-stack,remote,unparsable}.html` (nowe)
 **Estimated Steps:** 6
 **Testy:** 5 (`TestNofluffjobsParseOffer`)
 
@@ -343,7 +343,7 @@ Dwie sprzeczności wewnętrzne wykryte przy planowaniu. Żadnej **nie zgadujemy*
     - Własna zakładka i własny budżet czasu na jednostkę pracy
     - **`slices.Reverse` — TAK**
     - URL-e targetów zawierają literalny `+` (`/pl/c++?sort=newest`) — **nie kodować** ani nie normalizować tego znaku
-  - [ ] 8.6 `go test ./internal/crawler/ -run TestNofluffjobsParseOffer`
+  - [ ] 8.6 `go test ./internal/justjoin/ -run TestNofluffjobsParseOffer`
 
 **Acceptance Criteria:**
 - 5 testów przechodzi (część kryterium 22)
@@ -355,7 +355,7 @@ Dwie sprzeczności wewnętrzne wykryte przy planowaniu. Żadnej **nie zgadujemy*
 ### Grupa 9: Portal bulldogjob.pl
 
 **Dependencies:** 5
-**Files to Modify:** `internal/crawler/bulldogjob_portal.go` (nowy), `internal/crawler/bulldogjob_portal_test.go` (nowy), `internal/crawler/testdata/bulldogjob/{typical,no-date,no-stack,remote,unparsable}.html` (nowe)
+**Files to Modify:** `internal/justjoin/bulldogjob_portal.go` (nowy), `internal/justjoin/bulldogjob_portal_test.go` (nowy), `internal/justjoin/testdata/bulldogjob/{typical,no-date,no-stack,remote,unparsable}.html` (nowe)
 **Estimated Steps:** 6
 **Testy:** 5 (`TestBulldogjobParseOffer`)
 
@@ -372,7 +372,7 @@ Dwie sprzeczności wewnętrzne wykryte przy planowaniu. Żadnej **nie zgadujemy*
     - `maxListingPages = 3` na target na przebieg; po limicie log `[bulldogjob] page limit (3) reached for <url>`
     - Limit stron jest **niezależny** od limitu 100 ofert na przebieg
     - **`slices.Reverse` — NIE** (listing nie jest posortowany newest-first)
-  - [ ] 9.6 `go test ./internal/crawler/ -run TestBulldogjobParseOffer`
+  - [ ] 9.6 `go test ./internal/justjoin/ -run TestBulldogjobParseOffer`
 
 **Acceptance Criteria:**
 - 5 testów przechodzi (część kryterium 22)
@@ -384,7 +384,7 @@ Dwie sprzeczności wewnętrzne wykryte przy planowaniu. Żadnej **nie zgadujemy*
 ### Grupa 10: Portal solid.jobs
 
 **Dependencies:** 5
-**Files to Modify:** `internal/crawler/solidjobs_portal.go` (nowy), `internal/crawler/solidjobs_portal_test.go` (nowy), `internal/crawler/testdata/solidjobs/{typical,no-date,no-stack,remote,unparsable}.html` (nowe)
+**Files to Modify:** `internal/justjoin/solidjobs_portal.go` (nowy), `internal/justjoin/solidjobs_portal_test.go` (nowy), `internal/justjoin/testdata/solidjobs/{typical,no-date,no-stack,remote,unparsable}.html` (nowe)
 **Estimated Steps:** 6
 **Testy:** 5 (`TestSolidjobsParseOffer`)
 
@@ -398,7 +398,7 @@ Dwie sprzeczności wewnętrzne wykryte przy planowaniu. Żadnej **nie zgadujemy*
   - [ ] 10.5 Zaimplementować `SolidjobsCollector` + `NewSolidjobsCollector()`
     - **ZAKAZ zapisywania `location.href` po nawigacji.** solid.jobs przekierowuje na adres kanoniczny; zapisany URL musi pochodzić z listingu, inaczej `unseen` przestaje trafiać i **każdy przebieg scrapuje wszystko od nowa** — przy pauzie 2-3 min prosta droga do bana
     - **`slices.Reverse` — NIE**
-  - [ ] 10.6 `go test ./internal/crawler/ -run TestSolidjobsParseOffer`
+  - [ ] 10.6 `go test ./internal/justjoin/ -run TestSolidjobsParseOffer`
 
 **Acceptance Criteria:**
 - 5 testów przechodzi (część kryterium 22)
@@ -410,7 +410,7 @@ Dwie sprzeczności wewnętrzne wykryte przy planowaniu. Żadnej **nie zgadujemy*
 ### Grupa 11: Wiązanie czterech pipeline'ów w `cmd/crawler/main.go`
 
 **Dependencies:** 4, 6, 7, 8, 9, 10
-**Files to Modify:** `cmd/crawler/main.go`, `internal/crawler/targets.go` (nowy), `internal/crawler/targets_test.go` (nowy)
+**Files to Modify:** `cmd/crawler/main.go`, `internal/justjoin/targets.go` (nowy), `internal/justjoin/targets_test.go` (nowy)
 **Estimated Steps:** 7
 **Testy:** 4 (`TestGroupTargetsBySource`)
 
@@ -420,7 +420,7 @@ Dwie sprzeczności wewnętrzne wykryte przy planowaniu. Żadnej **nie zgadujemy*
     - slug portalu spoza czterech zaimplementowanych → target pominięty, bez panic
     - `scrape_targets.category` spoza `category.All` → target pominięty, bez panic
     - poprawne wejście → grupy per portal z rozwiązanym `CategoryName`
-  - [ ] 11.2 Zaimplementować `groupTargetsBySource` w `internal/crawler/targets.go`
+  - [ ] 11.2 Zaimplementować `groupTargetsBySource` w `internal/justjoin/targets.go`
     - Czysta funkcja `[]database.ListEnabledScrapeTargetsRow → map[string][]ScrapeTarget` + lista pominięć
     - Walidacja kategorii przez `category.BySlug` **przy starcie** (`validation.md`, `error-handling.md` → „Graceful Degradation")
   - [ ] 11.3 Wpiąć `db.ListEnabledScrapeTargets(ctx)` na starcie `main()`
@@ -435,7 +435,7 @@ Dwie sprzeczności wewnętrzne wykryte przy planowaniu. Żadnej **nie zgadujemy*
     - Wariant „N fetcherów pisze do wspólnego kanału" jest odrzucony (dałby `panic: close of closed channel`)
   - [ ] 11.6 Zweryfikować graceful shutdown ręcznie
     - `SIGTERM` **w trakcie aktywnego scrapowania**: brak `panic: close of closed channel`, brak zawieszenia, `wg.Wait()` domyka 3N goroutine'ów
-  - [ ] 11.7 `go test ./internal/crawler/ -run TestGroupTargetsBySource` + ręczny scenariusz SIGTERM
+  - [ ] 11.7 `go test ./internal/justjoin/ -run TestGroupTargetsBySource` + ręczny scenariusz SIGTERM
 
 **Acceptance Criteria:**
 - 4 testy przechodzą
@@ -577,7 +577,7 @@ Dwie sprzeczności wewnętrzne wykryte przy planowaniu. Żadnej **nie zgadujemy*
 ### Grupa 14: Przegląd testów, luki i mapowanie kryteriów akceptacji
 
 **Dependencies:** wszystkie poprzednie
-**Files to Modify:** `internal/crawler/*_test.go`, `internal/handlers/scraped_handler_test.go`
+**Files to Modify:** `internal/justjoin/*_test.go`, `internal/handlers/scraped_handler_test.go`
 **Estimated Steps:** 6
 **Testy:** max 10 dodatkowych
 
@@ -653,9 +653,9 @@ G3 seed   G4 sqlc                    G7  G8  G9  G10   (4 portale równolegle)
 
 | Plik | Grupy | Reguła |
 |---|---|---|
-| `internal/crawler/fetcher.go` | 5, 6 | G6 startuje po zamknięciu G5 |
-| `internal/crawler/transformer.go` | 5, 6 | j.w. |
-| `internal/crawler/transformer_test.go` | 6, 14 | G14 jest ostatnia |
+| `internal/justjoin/fetcher.go` | 5, 6 | G6 startuje po zamknięciu G5 |
+| `internal/justjoin/transformer.go` | 5, 6 | j.w. |
+| `internal/justjoin/transformer_test.go` | 6, 14 | G14 jest ostatnia |
 | `docker-compose.yaml` | 3, 13 | G13 jest po G3 |
 | `internal/handlers/scraped_handler.go` | 4, 12 | G12 po G4 |
 | `internal/database/schema.sql` | 2 (zapis), 4 (odczyt przez `sqlc`) | G4 po G2 |

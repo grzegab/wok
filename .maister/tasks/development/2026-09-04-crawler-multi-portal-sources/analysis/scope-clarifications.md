@@ -48,7 +48,7 @@ Użytkownik nie akceptuje wielodniowego backfillu bez ogranicznika. Potrzebny **
 
 **3. Transakcja `txBeginner` + `pgPool` — odrzucona.**
 Zapis `possibilities` i `possibility_html` idzie dwoma osobnymi `INSERT`-ami: najpierw oferta z `RETURNING id`, potem HTML. **Ryzyko:** jeśli drugi `INSERT` padnie (timeout przy setkach KB, restart kontenera między zapisami), zostaje wiersz oferty bez zapisanego HTML-a — czyli dokładnie ta sytuacja, przed którą miał chronić punkt (c) zadania. Nie ma automatycznego wykrywania takich sierot.
-**Do rozstrzygnięcia w Fazie 5:** czy timeout w `internal/crawler/persist.go:34` (dziś `3 * time.Second`) podnieść, skoro zapis setek KB idzie teraz bez transakcji i z 4 równoległych pipeline'ów.
+**Do rozstrzygnięcia w Fazie 5:** czy timeout w `internal/justjoin/persist.go:34` (dziś `3 * time.Second`) podnieść, skoro zapis setek KB idzie teraz bez transakcji i z 4 równoległych pipeline'ów.
 
 ## Stan po Fazie 2
 
