@@ -1,6 +1,6 @@
 package category
 
-const noFluffScrapeParams = "?salaryCurrency=PLN&salaryPeriod=month&region=pl&language=pl-PL&page=1"
+const noFluffScrapeParams = "?salaryCurrency=PLN&salaryPeriod=month&region=pl&language=pl-PL"
 
 const noFluffMainUrl = "https://nofluffjobs.com/api/search/posting"
 
