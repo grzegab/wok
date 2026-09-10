@@ -9,7 +9,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"io"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -98,18 +97,19 @@ func (ot *OfferTransformer) ConvertOffer(offer RawOffer) (database.CreatePossibi
 		Location:    optText(string(offer.Location)),
 		Tech:        optText(string(offer.Tech)),
 		Description: optText(offer.Description),
-		PostedAt:    optDate(strconv.Itoa(offer.PostedAt)),
+		PostedAt:    epochMillisDate(offer.PostedAt),
 		Source:      optText(offer.Source),
 	}, nil
 }
 
-func optDate(s string) pgtype.Date {
-	day, err := time.Parse("2006-01-02", strings.TrimSpace(s))
-	if err != nil {
+// epochMillisDate converts the "posted" field, a Unix epoch in milliseconds,
+// to a date. Offers without a posted time are stored as NULL.
+func epochMillisDate(ms int) pgtype.Date {
+	if ms <= 0 {
 		return pgtype.Date{}
 	}
 
-	return pgtype.Date{Time: day, Valid: true}
+	return pgtype.Date{Time: time.UnixMilli(int64(ms)).UTC(), Valid: true}
 }
 
 func optText(s string) pgtype.Text {

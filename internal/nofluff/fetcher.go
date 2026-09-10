@@ -64,19 +64,19 @@ func (of *Fetcher) fetchAll(ctx context.Context) {
 	for _, c := range of.categories {
 		body, err := json.Marshal(searchRequest{RawSearch: c.SearchTerm})
 		if err != nil {
-			return
+			continue
 		}
 
 		// To set custom headers, use [NewRequest] and DefaultClient.Do.
 		req, err := http.NewRequest("POST", c.ScrapeURL, bytes.NewReader(body))
 		if err != nil {
-			return
+			continue
 		}
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
-			return
+			continue
 		}
 
 		defer resp.Body.Close()
