@@ -76,7 +76,7 @@ Kluczowe ustalenie tej fazy, którego nie było w analizie kodu: **`possibilitie
 |---|---|---|
 | `Category` | `{Slug, Name, ScrapeURL}` | `{Slug, Name}` — `ScrapeURL` usunięte |
 | `All` | 5 wpisów z URL-ami justjoin.it | 5 wpisów bez URL-i, **nadal w Go** |
-| `scrapeParams` const | `"?orderBy=DESC&sortBy=newest"` | usunięte (parametry są częścią URL-i w `scrape_targets`) |
+| `justJoinScrapeParams` const | `"?orderBy=DESC&sortBy=newest"` | usunięte (parametry są częścią URL-i w `scrape_targets`) |
 | `BySlug` | bez zmian | bez zmian |
 
 **Uzasadnienie rekomendacji:** kategoria to **taksonomia UI** (menu, `/scr4p3d/{slug}`, nagłówki), a nie konfiguracja crawlera. Do bazy przenosimy to, o co prosi zadanie — **URL-e listingów** — a nie całą taksonomię. Przy tym wariancie ripple jest zerowy: `templates/parse.go:13`, `handlers/helper.go:80`, `stats_handler.go:44`, `scraped_handler.go:46`, `partials/header.gohtml` używają wyłącznie `Slug` i `Name`. Zmienia się **tylko** `fetcher.go` i `cmd/crawler/main.go`.

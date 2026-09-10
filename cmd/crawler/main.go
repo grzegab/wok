@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/grzegab/wok/internal/nofluff"
 	"log"
 	"os"
 	"os/signal"
@@ -39,19 +40,34 @@ func main() {
 	// start crawler
 	wg := sync.WaitGroup{}
 
-	cr := justjoin.NewOfferFetcher(category.All)
+	jjf := justjoin.NewOfferFetcher(category.JustJoinAll)
 	wg.Go(func() {
-		cr.Fetch(ctx)
+		jjf.Fetch(ctx)
 	})
 
-	ot := justjoin.NewOfferTransformer(db)
+	jjt := justjoin.NewOfferTransformer(db)
 	wg.Go(func() {
-		ot.Transform(ctx, cr.FetchedUrls)
+		jjt.Transform(ctx, jjf.FetchedUrls)
 	})
 
-	op := justjoin.NewOfferPersist(db)
+	jjp := justjoin.NewOfferPersist(db)
 	wg.Go(func() {
-		op.Persist(ot.Offers)
+		jjp.Persist(jjt.Offers)
+	})
+
+	nff := nofluff.NewNoFluffFetcher(category.NoFluffAll)
+	wg.Go(func() {
+		nff.FetchOffers(ctx)
+	})
+
+	nft := nofluff.NewOfferTransformer(db)
+	wg.Go(func() {
+		nft.Transform(ctx, nff.RawOfferBuff)
+	})
+
+	nfp := nofluff.NewOfferPersist(db)
+	wg.Go(func() {
+		nfp.Persist(nft.OffersDb)
 	})
 
 	// graceful shutdown

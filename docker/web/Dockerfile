@@ -1,5 +1,5 @@
 # Stage 1: Build binary
-FROM golang:1.26.1-alpine AS builder
+FROM golang:1.27.0-alpine AS builder
 
 # Upgrade all packages
 RUN apk update && apk upgrade --no-cache

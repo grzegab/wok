@@ -77,5 +77,5 @@ func formatTimestamp(t pgtype.Timestamptz) string {
 
 // requestCategory resolves the {category} URL slug to a known category.
 func requestCategory(r *http.Request) (category.Category, bool) {
-	return category.BySlug(chi.URLParam(r, "category"))
+	return category.JustJoinBySlug(chi.URLParam(r, "category"))
 }

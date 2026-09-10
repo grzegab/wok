@@ -10,7 +10,7 @@ import (
 // funcs exposes the menu categories to every template, so the shared header
 // partial renders the navigation without each handler passing it in.
 var funcs = template.FuncMap{
-	"categories": func() []category.Category { return category.All },
+	"categories": func() []category.Category { return category.JustJoinAll },
 }
 
 // Parse parses one embedded template area (its own directory plus the shared

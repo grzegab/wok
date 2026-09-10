@@ -269,7 +269,7 @@ func TestRouting_CategoryPages(t *testing.T) {
 	sessionRepo := &fakeSessionRepository{valid: true}
 	r := newTestRouter(t, &config.Config{}, sessionRepo, newFakeApplicationStore())
 
-	for _, cat := range category.All {
+	for _, cat := range category.JustJoinAll {
 		for _, path := range []string{"/scr4p3d/" + cat.Slug, "/st4ts/" + cat.Slug} {
 			t.Run(path, func(t *testing.T) {
 				req := httptest.NewRequest(http.MethodGet, path, nil)

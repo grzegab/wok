@@ -9,6 +9,9 @@ ORDER BY created_at DESC, id DESC;
 -- name: ExistingPossibilityUrls :many
 SELECT url FROM possibilities WHERE url = ANY(@urls::text[]);
 
+-- name: ExistingPossibilityUrl :one
+SELECT url FROM possibilities WHERE url = $1;
+
 -- name: CreatePossibility :one
 INSERT INTO possibilities (
 category, url, company_name, job_title, location, is_remote, tech, description, source, posted_at

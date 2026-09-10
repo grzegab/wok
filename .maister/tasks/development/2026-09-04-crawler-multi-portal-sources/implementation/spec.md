@@ -609,7 +609,7 @@ Ochrona jest dwuwarstwowa:
 1. **Przy starcie** — każdy `scrape_targets.category` przechodzi przez `category.BySlug`; nieznany slug oznacza pominięcie targetu z logiem ostrzegawczym (`error-handling.md` → „Graceful Degradation"), nie panic.
 2. **Przy zapisie** — `CreatePossibilityParams.Category` jest zasilane wyłącznie z `CategoryName`. Slug nie ma drogi do tej kolumny: `FetchedOffers` niesie oba pola, ale `CategorySlug` służy tylko logom.
 
-**Zmiany w `internal/category/category.go`:** znika pole `ScrapeURL` i stała `scrapeParams`. `All`, `Slug`, `Name` i `BySlug` **zostają w Go bez zmian** (decyzja `category-source-of-truth`). Ripple jest zerowy — `templates/parse.go:13`, `handlers/helper.go:79`, `stats_handler.go:35`, `scraped_handler.go:37` używają wyłącznie `Slug` i `Name`.
+**Zmiany w `internal/category/category.go`:** znika pole `ScrapeURL` i stała `justJoinScrapeParams`. `All`, `Slug`, `Name` i `BySlug` **zostają w Go bez zmian** (decyzja `category-source-of-truth`). Ripple jest zerowy — `templates/parse.go:13`, `handlers/helper.go:79`, `stats_handler.go:35`, `scraped_handler.go:37` używają wyłącznie `Slug` i `Name`.
 
 ### 9.5 Wiązanie pipeline'ów i graceful shutdown
 

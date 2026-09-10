@@ -65,6 +65,17 @@ func (q *Queries) CreatePossibility(ctx context.Context, arg CreatePossibilityPa
 	return i, err
 }
 
+const existingPossibilityUrl = `-- name: ExistingPossibilityUrl :one
+SELECT url FROM possibilities WHERE url = $1
+`
+
+func (q *Queries) ExistingPossibilityUrl(ctx context.Context, url string) (string, error) {
+	row := q.db.QueryRow(ctx, existingPossibilityUrl, url)
+	var url_2 string
+	err := row.Scan(&url_2)
+	return url_2, err
+}
+
 const existingPossibilityUrls = `-- name: ExistingPossibilityUrls :many
 SELECT url FROM possibilities WHERE url = ANY($1::text[])
 `

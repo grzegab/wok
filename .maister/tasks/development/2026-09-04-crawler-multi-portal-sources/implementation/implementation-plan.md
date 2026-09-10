@@ -260,7 +260,7 @@ Dwie sprzeczności wewnętrzne wykryte przy planowaniu. Żadnej **nie zgadujemy*
     - Sekwencyjne przejście targetów, `collector.CollectOfferURLs(browserCtx, target.URL)`, wysyłka na własny kanał `FetchedUrls` (bufor 100) w `select` z `ctx.Done()`
     - `pause(listingInterval + rand.N(maxListingJitter))` — mechanizm losowania bez zmian
     - Prefiks loga `[<portal>/<kategoria> …]` w **każdej** linii
-  - [ ] 6.4 Usunąć `ScrapeURL` i `scrapeParams` z `internal/category/category.go`
+  - [ ] 6.4 Usunąć `ScrapeURL` i `justJoinScrapeParams` z `internal/category/category.go`
     - `All`, `Slug`, `Name`, `BySlug` bez zmian; ripple zerowy (`templates/parse.go:13`, `handlers/helper.go:79`, `stats_handler.go:35`, `scraped_handler.go:37` używają tylko `Slug`/`Name`)
     - Zaktualizować komentarz typu `Category`, który dziś opisuje `ScrapeURL`
   - [ ] 6.5 Przepisać `OfferTransformer`

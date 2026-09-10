@@ -12,6 +12,7 @@ type Querier interface {
 	CreateApplication(ctx context.Context, arg CreateApplicationParams) (Application, error)
 	CreatePossibility(ctx context.Context, arg CreatePossibilityParams) (Possibility, error)
 	DeleteApplication(ctx context.Context, id int64) error
+	ExistingPossibilityUrl(ctx context.Context, url string) (string, error)
 	ExistingPossibilityUrls(ctx context.Context, urls []string) ([]string, error)
 	GetApplication(ctx context.Context, id int64) (Application, error)
 	GetPossibility(ctx context.Context, id int64) (Possibility, error)
