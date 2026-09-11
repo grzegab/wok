@@ -29,6 +29,62 @@ As this application will be placed on production with globasl access IP blocking
 Application written in Go, with frontend in gohtml. Database simple noSQL for keeping information about company.
 
 
+## MCP server
+
+`cmd/mcp` hands the database to an MCP client - Claude Code, for one - as six read-only
+tools: `list_categories`, `list_applications`, `get_application`, `list_possibilities`,
+`get_possibility` and `tech_stats`. There is no arbitrary-SQL tool: the only statements
+that can run are the sqlc queries behind those six, and the pool connects with
+`default_transaction_read_only=on` on top of that.
+
+It talks stdio and the client starts it over ssh, so nothing listens publicly and the ssh
+key is the only credential involved.
+
+### Deploy
+
+```
+make mcp-deploy                                   # defaults to wok-vps:/opt/wok
+make mcp-deploy WOK_SSH_HOST=root@1.2.3.4 WOK_REMOTE_DIR=/srv/wok
+```
+
+The binary is not part of the Compose stack, so a plain `scp` is the whole deploy. It runs
+on the VPS host and reaches Postgres on the loopback, which is why the `postgres` service
+publishes `127.0.0.1:5432`; `make deploy` has to have run once since that was added.
+
+### Register with Claude Code
+
+```
+claude mcp add wok-db -s user -- ssh wok-vps 'cd /opt/wok && POSTGRES_HOST=127.0.0.1 exec bin/wok-mcp'
+```
+
+Both halves of that command matter. `cd` is needed because config comes from the `.env` in
+the working directory and `ssh host cmd` starts in `$HOME`. `POSTGRES_HOST` has to be
+overridden because `.env` names the Compose service, which does not resolve from the host;
+godotenv leaves variables already set in the environment alone, so the override wins.
+
+An `~/.ssh/config` entry keeps the command short and the session from idling out:
+
+```
+Host wok-vps
+    HostName <ip>
+    User <user>
+    IdentityFile ~/.ssh/id_ed25519
+    ServerAliveInterval 30
+```
+
+### Check it by hand
+
+```
+printf '%s\n' \
+  '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"t","version":"1"}}}' \
+  '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
+  '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"tech_stats","arguments":{"category":"go"}}}' \
+| ssh wok-vps 'cd /opt/wok && POSTGRES_HOST=127.0.0.1 ./bin/wok-mcp'
+```
+
+Two JSON-RPC responses come back on stdout and nothing else - every log line goes to
+stderr, because anything else on stdout corrupts the protocol.
+
 ## Roadmap
 
 

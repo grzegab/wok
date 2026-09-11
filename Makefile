@@ -1,10 +1,15 @@
-.PHONY: up down build logs sqlc hashgen deploy db-backup db-dump db-restore db-reset
+.PHONY: up down build logs sqlc hashgen deploy db-backup db-dump db-restore db-reset crawler mcp mcp-deploy
 
 BACKUP_DIR := backups
 
 # How docker is invoked. The VPS needs `make DOCKER="sudo docker" <target>`
 # (or DOCKER exported in the shell) unless the user is in the docker group.
 DOCKER ?= docker
+
+# Where the MCP server binary is shipped. Override per host:
+# make mcp-deploy WOK_SSH_HOST=root@1.2.3.4
+WOK_SSH_HOST   ?= wok-vps
+WOK_REMOTE_DIR ?= /opt/wok
 
 # Build and start the whole stack (web, crawler, redis, postgres) in Docker
 up:
@@ -57,3 +62,12 @@ db-reset:
 
 crawler:
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/crawler ./cmd/crawler
+
+# Cross-compile the MCP server that serves the database to an MCP client over ssh
+mcp:
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/wok-mcp ./cmd/mcp
+
+# Ship it to the VPS. It is not part of the Compose stack: the client starts it
+# per session over ssh, so a plain scp is the whole deploy.
+mcp-deploy: mcp
+	scp bin/wok-mcp $(WOK_SSH_HOST):$(WOK_REMOTE_DIR)/bin/wok-mcp
