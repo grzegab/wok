@@ -163,6 +163,66 @@ func (q *Queries) ListPossibilitiesByCategory(ctx context.Context, category stri
 	return items, nil
 }
 
+const listPossibilitiesByCategoryPaged = `-- name: ListPossibilitiesByCategoryPaged :many
+SELECT id, url, category, company_name, job_title, location, is_remote, tech, source, posted_at, created_at
+FROM possibilities
+WHERE category = $1
+ORDER BY created_at DESC, id DESC
+LIMIT $2 OFFSET $3
+`
+
+type ListPossibilitiesByCategoryPagedParams struct {
+	Category string `json:"category"`
+	Limit    int32  `json:"limit"`
+	Offset   int32  `json:"offset"`
+}
+
+type ListPossibilitiesByCategoryPagedRow struct {
+	ID          int64              `json:"id"`
+	Url         string             `json:"url"`
+	Category    string             `json:"category"`
+	CompanyName string             `json:"company_name"`
+	JobTitle    string             `json:"job_title"`
+	Location    pgtype.Text        `json:"location"`
+	IsRemote    bool               `json:"is_remote"`
+	Tech        pgtype.Text        `json:"tech"`
+	Source      pgtype.Text        `json:"source"`
+	PostedAt    pgtype.Date        `json:"posted_at"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) ListPossibilitiesByCategoryPaged(ctx context.Context, arg ListPossibilitiesByCategoryPagedParams) ([]ListPossibilitiesByCategoryPagedRow, error) {
+	rows, err := q.db.Query(ctx, listPossibilitiesByCategoryPaged, arg.Category, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListPossibilitiesByCategoryPagedRow
+	for rows.Next() {
+		var i ListPossibilitiesByCategoryPagedRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Url,
+			&i.Category,
+			&i.CompanyName,
+			&i.JobTitle,
+			&i.Location,
+			&i.IsRemote,
+			&i.Tech,
+			&i.Source,
+			&i.PostedAt,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const statsPossibilityByCategory = `-- name: StatsPossibilityByCategory :many
 SELECT
     trim(t) AS technology,

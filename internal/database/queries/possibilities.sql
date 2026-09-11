@@ -30,3 +30,10 @@ FROM possibilities,
 WHERE category = $1
 GROUP BY technology
 ORDER BY COUNT(*) DESC;
+
+-- name: ListPossibilitiesByCategoryPaged :many
+SELECT id, url, category, company_name, job_title, location, is_remote, tech, source, posted_at, created_at
+FROM possibilities
+WHERE category = $1
+ORDER BY created_at DESC, id DESC
+LIMIT $2 OFFSET $3;
