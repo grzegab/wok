@@ -34,14 +34,17 @@ WORKDIR /app
 # Copy binary from previous stage
 COPY --from=builder /app/main .
 
+# Let's Encrypt certificate cache, mounted as a volume when WEB_DOMAIN is set
+RUN mkdir certs
+
 # Ensure the binary is owned by appuser
 RUN chown -R appuser:appuser /app
 
 # Use non-root user
 USER appuser
 
-# Port the application listens on (80, as per .env.default)
-EXPOSE 80
+# 80 serves plain HTTP, or ACME challenges and redirects when WEB_DOMAIN is set; 443 serves HTTPS
+EXPOSE 80 443
 
 # Run application
 CMD ["./main"]

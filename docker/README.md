@@ -75,7 +75,7 @@ this is a destructive operation, take a `make db-backup` first if you need the d
 ## Technical details
 
 Every Dockerfile follows the same two-stage pattern:
-1. **Builder stage:** `golang:1.26-alpine`, compiles a static Linux binary (`CGO_ENABLED=0`).
+1. **Builder stage:** `golang:1.27.0-alpine`, compiles a static Linux binary (`CGO_ENABLED=0`).
 2. **Final stage:** `alpine:latest` with just the binary (and, for the crawler, Chromium —
    it drives a headless browser via `chromedp`), running as a non-root user.
 

@@ -108,6 +108,7 @@ go.work.sum
 /backups/
 
 /bin/
+/certs/
 
 # IDE and tooling
 .idea/

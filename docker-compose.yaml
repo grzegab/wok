@@ -34,10 +34,13 @@ services:
     restart: always
     ports:
       - "80:80"
+    volumes:
+      - web_certs:/app/certs
     environment:
       <<: *postgres-env
       REDIS_ADDR: redis:6379
       WEB_ADDR: ${WEB_ADDR:-:80}
+      WEB_DOMAIN: ${WEB_DOMAIN:-}
       SENTRY_DSN: ${SENTRY_DSN:-}
       LOGIN_USER: ${LOGIN_USER}
       LOGIN_PASS_HASH: ${LOGIN_PASS_HASH}
@@ -87,3 +90,4 @@ services:
 
 volumes:
   postgres_data:
+  web_certs:

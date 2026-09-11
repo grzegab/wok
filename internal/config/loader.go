@@ -16,6 +16,7 @@ type Config struct {
 	RedisAddr      string
 	PostgresDSN    string
 	WebAddr        string
+	WebDomain      string
 	SentryDsn      string
 	LoginUser      string
 	LoginPassHash  string
@@ -34,6 +35,7 @@ func Load() *Config {
 
 	redisAddr := os.Getenv("REDIS_ADDR")
 	webAddr := os.Getenv("WEB_ADDR")
+	webDomain := os.Getenv("WEB_DOMAIN")
 	sentryDsn := os.Getenv("SENTRY_DSN")
 	loginUser := os.Getenv("LOGIN_USER")
 	loginPassHash := os.Getenv("LOGIN_PASS_HASH")
@@ -42,6 +44,7 @@ func Load() *Config {
 		RedisAddr:      redisAddr,
 		PostgresDSN:    postgresDSN(),
 		WebAddr:        webAddr,
+		WebDomain:      webDomain,
 		SentryDsn:      sentryDsn,
 		LoginUser:      loginUser,
 		LoginPassHash:  loginPassHash,

@@ -123,7 +123,7 @@ func newTestRouter(t *testing.T, conf *config.Config, sessionRepo SessionReposit
 	t.Helper()
 
 	ipRepo := repository.NewInMemoryIpRepository()
-	authHdlr := handlers.NewAuthHandler(sessionRepo, conf, testAuthTemplate(t))
+	authHdlr := handlers.NewAuthHandler(sessionRepo, repository.NewInMemoryLoginLimiter(5, time.Minute), conf, testAuthTemplate(t))
 	defaultHdlr := handlers.NewDefaultHandler(testDefaultsTemplate(t))
 	offersHdlr := handlers.NewOffersHandler(store, testOffersTemplate(t), 5*time.Second)
 	statsHdlr := handlers.NewStatsHandler(&fakePossibilityStatsStore{}, testStatsTemplate(t), 5*time.Second)

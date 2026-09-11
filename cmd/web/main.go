@@ -21,6 +21,13 @@ import (
 	"github.com/grzegab/wok/internal/repository"
 	"github.com/grzegab/wok/internal/router"
 	"github.com/grzegab/wok/internal/templates"
+	"golang.org/x/crypto/acme/autocert"
+)
+
+const (
+	certCacheDir     = "certs"
+	loginMaxAttempts = 5
+	loginWindow      = 15 * time.Minute
 )
 
 func main() {
@@ -108,28 +115,35 @@ func main() {
 
 	var handlerTimeout = 5 * time.Second
 
-	authHandler := handlers.NewAuthHandler(sessionRepo, conf, authTmpl)
+	loginLimiter := repository.NewInMemoryLoginLimiter(loginMaxAttempts, loginWindow)
+	authHandler := handlers.NewAuthHandler(sessionRepo, loginLimiter, conf, authTmpl)
 	defaultHandler := handlers.NewDefaultHandler(defaultsTmpl)
 	offerHandler := handlers.NewOffersHandler(db, offersTmpl, handlerTimeout)
 	statsHandler := handlers.NewStatsHandler(db, statsTmpl, handlerTimeout)
 	scrapedHandler := handlers.NewScrapedHandler(db, scrapedTmpl, handlerTimeout)
 	r := router.New(ipRepo, sessionRepo, authHandler, defaultHandler, offerHandler, statsHandler, scrapedHandler)
 
-	server := &http.Server{
-		Addr:              conf.WebAddr,
-		Handler:           r.Mux(),
-		ReadTimeout:       conf.RequestTimeout,
-		ReadHeaderTimeout: conf.RequestTimeout,
-		WriteTimeout:      conf.RequestTimeout,
-		IdleTimeout:       conf.RequestTimeout,
-	}
-
-	go func() {
-		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Printf("server error: %v", err)
-			panic("Server error")
+	var servers []*http.Server
+	if conf.WebDomain == "" {
+		server := newServer(conf.WebAddr, r.Mux(), conf.RequestTimeout)
+		servers = append(servers, server)
+		go serve(server.ListenAndServe)
+	} else {
+		certManager := &autocert.Manager{
+			Prompt:     autocert.AcceptTOS,
+			HostPolicy: autocert.HostWhitelist(conf.WebDomain),
+			Cache:      autocert.DirCache(certCacheDir),
 		}
-	}()
+
+		httpsServer := newServer(":443", r.Mux(), conf.RequestTimeout)
+		httpsServer.TLSConfig = certManager.TLSConfig()
+		httpServer := newServer(":80", certManager.HTTPHandler(nil), conf.RequestTimeout)
+		servers = append(servers, httpsServer, httpServer)
+
+		log.Println("Serving HTTPS for", conf.WebDomain)
+		go serve(func() error { return httpsServer.ListenAndServeTLS("", "") })
+		go serve(httpServer.ListenAndServe)
+	}
 
 	// shutdown if needed
 	sigCh := make(chan os.Signal, 1)
@@ -143,10 +157,30 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := server.Shutdown(ctx); err != nil {
-		log.Println("error while shutdown:", err)
-		panic("error while shutdown")
+	for _, server := range servers {
+		if err := server.Shutdown(ctx); err != nil {
+			log.Println("error while shutdown:", err)
+			panic("error while shutdown")
+		}
 	}
 
 	fmt.Println("Bye, bye!")
+}
+
+func newServer(addr string, handler http.Handler, timeout time.Duration) *http.Server {
+	return &http.Server{
+		Addr:              addr,
+		Handler:           handler,
+		ReadTimeout:       timeout,
+		ReadHeaderTimeout: timeout,
+		WriteTimeout:      timeout,
+		IdleTimeout:       timeout,
+	}
+}
+
+func serve(listen func() error) {
+	if err := listen(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		log.Printf("server error: %v", err)
+		panic("Server error")
+	}
 }

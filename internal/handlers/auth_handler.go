@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/grzegab/wok/internal/config"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -25,14 +26,20 @@ type AuthSessionStore interface {
 	Revoke(ctx context.Context, token string) error
 }
 
+type LoginLimiter interface {
+	Allow(ip string) bool
+	Reset(ip string)
+}
+
 type AuthHandler struct {
 	sessionRepo AuthSessionStore
+	limiter     LoginLimiter
 	conf        *config.Config
 	tmpl        *template.Template
 }
 
-func NewAuthHandler(sessionRepo AuthSessionStore, conf *config.Config, tmpl *template.Template) *AuthHandler {
-	return &AuthHandler{sessionRepo: sessionRepo, conf: conf, tmpl: tmpl}
+func NewAuthHandler(sessionRepo AuthSessionStore, limiter LoginLimiter, conf *config.Config, tmpl *template.Template) *AuthHandler {
+	return &AuthHandler{sessionRepo: sessionRepo, limiter: limiter, conf: conf, tmpl: tmpl}
 }
 
 type loginPageData struct {
@@ -52,6 +59,14 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) LoginPost(w http.ResponseWriter, r *http.Request) {
 	username := r.FormValue("username")
 	password := r.FormValue("password")
+
+	ip := middleware.GetClientIP(r.Context())
+	if !h.limiter.Allow(ip) {
+		log.Printf("too many login attempts from %s", ip)
+		w.WriteHeader(http.StatusTooManyRequests)
+		h.renderLogin(w, loginPageData{Username: username, Error: "Too many attempts, try again later"})
+		return
+	}
 
 	if username == "" || password == "" {
 		h.renderLoginUnauthorized(w, username)
@@ -79,12 +94,14 @@ func (h *AuthHandler) LoginPost(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+	h.limiter.Reset(ip)
 
 	http.SetCookie(w, &http.Cookie{
 		Name:     SessionCookieName,
 		Value:    token,
 		Path:     "/",
 		HttpOnly: true,
+		Secure:   r.TLS != nil,
 		SameSite: http.SameSiteStrictMode,
 		MaxAge:   int(h.conf.SessionTTL.Seconds()),
 	})
@@ -119,6 +136,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		Value:    "",
 		Path:     "/",
 		HttpOnly: true,
+		Secure:   r.TLS != nil,
 		SameSite: http.SameSiteStrictMode,
 		MaxAge:   -1,
 	})

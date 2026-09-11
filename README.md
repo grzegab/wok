@@ -1,32 +1,62 @@
 # WOK
 
-This is application for personal use (1 person - me).
+A personal job-search tracker for a single user. It keeps a record of every job application
+and collects offers from job boards to show which technologies are in demand.
 
-This is a project when looking for a new job. Simple application with list of applications.
-This application is build for keeping track of CV sent (different CV with different information) - don't want to overlap with two different CV sent.
+## Features
 
-Applications contains:
-- name of company
-- aliases for company
-- date of CV sent
-- CV version (versioning by date)
-- screenshots of job description
-- link to job description
-
-Applications list can be searched by company name or alias.
-Some companies have red status - means I cannot apply there (or dont want to).\
-
-Also each application has a status - sent, declined - no response, declined - with comment, in progress, accepted.
-
-If company doesn't contact in 1 month - status is chenged to declined - no response. In progress
+- Applications: company, date, whether there was a chat, salary range (offered and my own),
+  stack, offer link, outcome, notes and a status (`applied`, `progress`, `failed`, `abandon`).
+- Crawler: scrapes offers from justjoin.it and nofluffjobs.com for a fixed set of categories
+  (Go, PHP, AI/ML, C/C++, Software Architect) into the `possibilities` table.
+- Scraped offers list and technology stats per category.
+- Database cleaner and a read-only MCP server (below).
 
 ## Security
 
-As this application will be placed on production with globasl access IP blocking will be provided.
+The panel is exposed publicly but meant for one person:
 
+- Login with a single user whose bcrypt hash is set in `LOGIN_PASS_HASH` (`make hashgen`
+  generates one). Login attempts are limited to 5 per IP per 15 minutes.
+- Sessions are stored in Redis (in memory as a fallback) and sent as an `HttpOnly`,
+  `SameSite=Strict` cookie, marked `Secure` when served over HTTPS.
+- Requests to common scanner paths (`/.env`, `/wp-*`, ...) and any unexpected
+  `POST`/`PUT`/`DELETE` ban the client IP for 30 minutes.
+- HTTPS through Let's Encrypt when `WEB_DOMAIN` is set (see Configuration).
 
 ## Tech stack
-Application written in Go, with frontend in gohtml. Database simple noSQL for keeping information about company.
+
+Go with server-side rendered `html/template` pages, Chi router, PostgreSQL through
+`sqlc`-generated queries, Redis for sessions and IP bans, `chromedp` for the justjoin.it
+crawler, Docker Compose for running the stack.
+
+## Getting started
+
+```
+cp .env.default .env    # fill in LOGIN_USER and LOGIN_PASS_HASH (make hashgen)
+make up                 # build and start web, crawler, redis and postgres
+```
+
+`docker/README.md` covers the images, deploy, backups and the other Makefile targets.
+
+## Configuration
+
+All settings come from environment variables (`.env` is loaded if present); `.env.default`
+lists them.
+
+| Variable | Purpose |
+| --- | --- |
+| `LOGIN_USER`, `LOGIN_PASS_HASH` | Panel login and bcrypt hash of its password |
+| `WEB_ADDR` | Listen address without TLS, `:80` by default |
+| `WEB_DOMAIN` | Domain for HTTPS; when set, the panel serves HTTPS on `:443` with a Let's Encrypt certificate and `:80` only answers ACME challenges and redirects to HTTPS |
+| `REDIS_ADDR` | Redis address; without Redis sessions and bans are kept in memory |
+| `POSTGRES_*` | Postgres connection |
+| `SENTRY_DSN` | Optional Sentry error reporting |
+
+With `WEB_DOMAIN` set, the domain's DNS has to point at the server and ports 80 and 443 have
+to be reachable for the certificate to be issued; `docker-compose.yaml` publishes only `80`,
+so add `"443:443"` to the `web` ports first. Certificates are cached in the
+`web_certs` volume.
 
 
 ## MCP server
@@ -115,11 +145,6 @@ docker needs no sudo), e.g. every night at 3:
 0 3 * * * cd /opt/wok && make cleaner >> /var/log/wok-cleaner.log 2>&1
 ```
 
-## Roadmap
+## License
 
-
-
-
-
-7. stats + view dla pobranych
-9. the protocol scrapper
+MIT, see `LICENSE`.

@@ -1,0 +1,11 @@
+.git
+.env
+.idea
+.playwright-mcp
+.maister
+.DS_Store
+bin
+backups
+certs
+**/*_test.go
+**/testdata
