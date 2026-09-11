@@ -6,6 +6,10 @@ services:
   postgres:
     image: postgres:17-alpine
     restart: always
+    # Loopback only: bin/wok-mcp runs on the VPS host (driven over ssh by an MCP
+    # client) and reaches the database here, without opening it to the network.
+    ports:
+      - "127.0.0.1:5432:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-wok}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wok}
