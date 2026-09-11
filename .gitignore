@@ -107,5 +107,11 @@ go.work.sum
 # database backups
 /backups/
 
-bin/wok-mcp
-/bin/wok-cleaner
+/bin/
+
+# IDE and tooling
+.idea/
+.playwright-mcp/
+
+# macOS
+.DS_Store
