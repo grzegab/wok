@@ -1,11 +1,6 @@
 -- name: GetPossibility :one
 SELECT * FROM possibilities WHERE id = $1;
 
--- name: ListPossibilitiesByCategory :many
-SELECT * FROM possibilities
-WHERE category = $1
-ORDER BY created_at DESC, id DESC;
-
 -- name: ExistingPossibilityUrls :many
 SELECT url FROM possibilities WHERE url = ANY(@urls::text[]);
 

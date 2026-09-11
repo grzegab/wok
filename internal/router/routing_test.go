@@ -115,7 +115,7 @@ func (s *fakePossibilityStatsStore) StatsPossibilityByCategory(_ context.Context
 // exercise the scraped offers route without a real database.
 type fakePossibilityStore struct{}
 
-func (s *fakePossibilityStore) ListPossibilitiesByCategory(_ context.Context, _ string) ([]database.Possibility, error) {
+func (s *fakePossibilityStore) ListPossibilitiesByCategoryPaged(_ context.Context, _ database.ListPossibilitiesByCategoryPagedParams) ([]database.ListPossibilitiesByCategoryPagedRow, error) {
 	return nil, nil
 }
 

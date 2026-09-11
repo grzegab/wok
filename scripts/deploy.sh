@@ -82,6 +82,15 @@ ALTER TABLE possibilities
 CREATE INDEX IF NOT EXISTS possibilities_duplicate_of_idx
     ON possibilities (duplicate_of);
 
+UPDATE possibilities
+SET url = 'https://nofluffjobs.com/pl/job/' || url
+WHERE url NOT LIKE 'http%'
+  AND url NOT LIKE '/%'
+  AND NOT EXISTS (
+      SELECT 1 FROM possibilities full_url
+      WHERE full_url.url = 'https://nofluffjobs.com/pl/job/' || possibilities.url
+  );
+
 SELECT schemaname, indexname FROM pg_indexes WHERE tablename = 'possibilities';
 \d possibilities
 SQL

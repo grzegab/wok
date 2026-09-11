@@ -194,46 +194,6 @@ func (q *Queries) ListDuplicatesByCategory(ctx context.Context, category string)
 	return items, nil
 }
 
-const listPossibilitiesByCategory = `-- name: ListPossibilitiesByCategory :many
-SELECT id, url, category, company_name, job_title, location, is_remote, tech, description, source, posted_at, created_at, duplicate_of FROM possibilities
-WHERE category = $1
-ORDER BY created_at DESC, id DESC
-`
-
-func (q *Queries) ListPossibilitiesByCategory(ctx context.Context, category string) ([]Possibility, error) {
-	rows, err := q.db.Query(ctx, listPossibilitiesByCategory, category)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Possibility
-	for rows.Next() {
-		var i Possibility
-		if err := rows.Scan(
-			&i.ID,
-			&i.Url,
-			&i.Category,
-			&i.CompanyName,
-			&i.JobTitle,
-			&i.Location,
-			&i.IsRemote,
-			&i.Tech,
-			&i.Description,
-			&i.Source,
-			&i.PostedAt,
-			&i.CreatedAt,
-			&i.DuplicateOf,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listPossibilitiesByCategoryPaged = `-- name: ListPossibilitiesByCategoryPaged :many
 SELECT id, url, category, company_name, job_title, location, is_remote, tech, source, posted_at, created_at
 FROM possibilities

@@ -25,7 +25,6 @@ type RawOffer struct {
 	CompanyName string         `json:"name"`
 	JobTitle    string         `json:"title"`
 	Location    Location       `json:"location"`
-	IsRemote    bool           `json:"fullyRemote"`
 	MainTech    jsontext.Value `json:"technology"`
 	Tech        Tiles          `json:"tiles"`
 	Source      string         `json:"source"`
@@ -37,7 +36,8 @@ type RawOffer struct {
 // Location lists the places an offer is open in. A place can name just a
 // province, leaving its city empty.
 type Location struct {
-	Places []Place `json:"places"`
+	Places      []Place `json:"places"`
+	FullyRemote bool    `json:"fullyRemote"`
 }
 
 type Place struct {

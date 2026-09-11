@@ -33,5 +33,11 @@
         </table>
     </div>
 </div>
+{{ if or .PrevPage .NextPage }}
+<nav class="d-flex justify-content-between mt-3">
+    <div>{{ if .PrevPage }}<a class="btn btn-sm btn-outline-secondary" href="/scr4p3d/{{ .Category.Slug }}?page={{ .PrevPage }}">Newer</a>{{ end }}</div>
+    <div>{{ if .NextPage }}<a class="btn btn-sm btn-outline-secondary" href="/scr4p3d/{{ .Category.Slug }}?page={{ .NextPage }}">Older</a>{{ end }}</div>
+</nav>
+{{ end }}
 {{ template "footer" }}
 {{ end }}

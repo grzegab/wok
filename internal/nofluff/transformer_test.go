@@ -1,7 +1,10 @@
 package nofluff
 
 import (
+	"context"
 	"encoding/json/v2"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 )
 
@@ -113,5 +116,58 @@ func TestConvertOfferStoresNormalizedRequirementsAsCommaSeparatedList(t *testing
 				t.Errorf("ConvertOffer() tech = %+v, want %q (valid %v)", got.Tech, tt.want, tt.valid)
 			}
 		})
+	}
+}
+
+func TestConvertOfferStoresFullJobUrl(t *testing.T) {
+	got, err := NewOfferTransformer(nil).ConvertOffer(RawOffer{Url: "go-developer-acme-warszawa"})
+	if err != nil {
+		t.Fatalf("ConvertOffer() error = %v", err)
+	}
+
+	want := "https://nofluffjobs.com/pl/job/go-developer-acme-warszawa"
+	if got.Url != want {
+		t.Errorf("ConvertOffer() url = %q, want %q", got.Url, want)
+	}
+}
+
+func TestConvertOfferTakesRemoteFromLocation(t *testing.T) {
+	var offer RawOffer
+	if err := json.Unmarshal([]byte(`{"fullyRemote":false,"location":{"places":[],"fullyRemote":true}}`), &offer); err != nil {
+		t.Fatalf("could not decode offer: %v", err)
+	}
+
+	got, err := NewOfferTransformer(nil).ConvertOffer(offer)
+	if err != nil {
+		t.Fatalf("ConvertOffer() error = %v", err)
+	}
+
+	if !got.IsRemote {
+		t.Error("ConvertOffer() is_remote = false, want true")
+	}
+}
+
+func TestFillOfferFailsOnNonOkResponse(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "gone", http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	if _, err := NewOfferTransformer(nil).FillOffer(context.Background(), RawOffer{}, server.URL); err == nil {
+		t.Fatal("FillOffer() should fail when the posting is not found")
+	}
+}
+
+func TestFillOfferStopsWhenContextIsCancelled(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-r.Context().Done()
+	}))
+	defer server.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	if _, err := NewOfferTransformer(nil).FillOffer(ctx, RawOffer{}, server.URL); err == nil {
+		t.Fatal("FillOffer() should fail with a cancelled context")
 	}
 }
