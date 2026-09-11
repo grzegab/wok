@@ -58,6 +58,16 @@ type PossibilityInput struct {
 	ID int64 `json:"id" jsonschema:"id of the offer, as returned by list_possibilities"`
 }
 
+type DuplicatesInput struct {
+	Category string `json:"category" jsonschema:"category name or slug, as returned by list_categories"`
+}
+
+type DuplicatesOutput struct {
+	Category string           `json:"category"`
+	Groups   []DuplicateGroup `json:"groups" jsonschema:"kept offers with their copies, oldest kept offer first"`
+	Count    int              `json:"count" jsonschema:"number of offers marked as duplicates in the category"`
+}
+
 type TechStatsInput struct {
 	Category string `json:"category" jsonschema:"category name or slug, as returned by list_categories"`
 }
@@ -160,6 +170,23 @@ func (t *toolset) getPossibility(ctx context.Context, _ *mcp.CallToolRequest, in
 	}
 
 	return nil, toPossibility(row), nil
+}
+
+func (t *toolset) listDuplicates(ctx context.Context, _ *mcp.CallToolRequest, in DuplicatesInput) (*mcp.CallToolResult, DuplicatesOutput, error) {
+	name, err := resolveCategory(in.Category)
+	if err != nil {
+		return nil, DuplicatesOutput{}, err
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, config.RequestTimeout)
+	defer cancel()
+
+	rows, err := t.db.ListDuplicatesByCategory(ctx, name)
+	if err != nil {
+		return nil, DuplicatesOutput{}, fmt.Errorf("listing duplicates for %q: %w", name, err)
+	}
+
+	return nil, DuplicatesOutput{Category: name, Groups: toDuplicateGroups(rows), Count: len(rows)}, nil
 }
 
 func (t *toolset) techStats(ctx context.Context, _ *mcp.CallToolRequest, in TechStatsInput) (*mcp.CallToolResult, TechStatsOutput, error) {

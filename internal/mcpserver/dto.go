@@ -56,6 +56,23 @@ type Possibility struct {
 	Description *string `json:"description"`
 }
 
+type DuplicateOffer struct {
+	ID       int64   `json:"id"`
+	Url      string  `json:"url"`
+	JobTitle string  `json:"job_title"`
+	Location *string `json:"location"`
+	Source   *string `json:"source" jsonschema:"job board the offer was scraped from"`
+}
+
+// DuplicateGroup is one offer the cleaner kept together with the copies it
+// found of it: the same company asking for the same technologies.
+type DuplicateGroup struct {
+	CompanyName string           `json:"company_name"`
+	Tech        *string          `json:"tech" jsonschema:"comma-separated technology list of the kept offer, the copies had the same one"`
+	Original    DuplicateOffer   `json:"original" jsonschema:"offer that keeps its technologies"`
+	Duplicates  []DuplicateOffer `json:"duplicates" jsonschema:"copies whose tech was replaced with duplicate"`
+}
+
 type TechStat struct {
 	Technology string `json:"technology"`
 	Count      int64  `json:"count"`
@@ -120,6 +137,38 @@ func toPossibility(p database.Possibility) Possibility {
 		},
 		Description: textPtr(p.Description),
 	}
+}
+
+// toDuplicateGroups folds the rows, ordered by the kept offer, into one group
+// per kept offer.
+func toDuplicateGroups(rows []database.ListDuplicatesByCategoryRow) []DuplicateGroup {
+	groups := make([]DuplicateGroup, 0)
+	for _, r := range rows {
+		if len(groups) == 0 || groups[len(groups)-1].Original.ID != r.OriginalID {
+			groups = append(groups, DuplicateGroup{
+				CompanyName: r.CompanyName,
+				Tech:        textPtr(r.OriginalTech),
+				Original: DuplicateOffer{
+					ID:       r.OriginalID,
+					Url:      r.OriginalUrl,
+					JobTitle: r.OriginalJobTitle,
+					Location: textPtr(r.OriginalLocation),
+					Source:   textPtr(r.OriginalSource),
+				},
+			})
+		}
+
+		group := &groups[len(groups)-1]
+		group.Duplicates = append(group.Duplicates, DuplicateOffer{
+			ID:       r.ID,
+			Url:      r.Url,
+			JobTitle: r.JobTitle,
+			Location: textPtr(r.Location),
+			Source:   textPtr(r.Source),
+		})
+	}
+
+	return groups
 }
 
 func textPtr(t pgtype.Text) *string {

@@ -18,7 +18,7 @@ category, url, company_name, job_title, location, is_remote, tech, description, 
 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
 ) ON CONFLICT (url) DO UPDATE
 SET posted_at = COALESCE(EXCLUDED.posted_at, possibilities.posted_at)
-RETURNING id, url, category, company_name, job_title, location, is_remote, tech, description, source, posted_at, created_at
+RETURNING id, url, category, company_name, job_title, location, is_remote, tech, description, source, posted_at, created_at, duplicate_of
 `
 
 type CreatePossibilityParams struct {
@@ -61,6 +61,7 @@ func (q *Queries) CreatePossibility(ctx context.Context, arg CreatePossibilityPa
 		&i.Source,
 		&i.PostedAt,
 		&i.CreatedAt,
+		&i.DuplicateOf,
 	)
 	return i, err
 }
@@ -101,7 +102,7 @@ func (q *Queries) ExistingPossibilityUrls(ctx context.Context, urls []string) ([
 }
 
 const getPossibility = `-- name: GetPossibility :one
-SELECT id, url, category, company_name, job_title, location, is_remote, tech, description, source, posted_at, created_at FROM possibilities WHERE id = $1
+SELECT id, url, category, company_name, job_title, location, is_remote, tech, description, source, posted_at, created_at, duplicate_of FROM possibilities WHERE id = $1
 `
 
 func (q *Queries) GetPossibility(ctx context.Context, id int64) (Possibility, error) {
@@ -120,12 +121,81 @@ func (q *Queries) GetPossibility(ctx context.Context, id int64) (Possibility, er
 		&i.Source,
 		&i.PostedAt,
 		&i.CreatedAt,
+		&i.DuplicateOf,
 	)
 	return i, err
 }
 
+const listDuplicatesByCategory = `-- name: ListDuplicatesByCategory :many
+SELECT
+    o.id AS original_id,
+    o.url AS original_url,
+    o.company_name,
+    o.job_title AS original_job_title,
+    o.location AS original_location,
+    o.source AS original_source,
+    o.tech AS original_tech,
+    d.id,
+    d.url,
+    d.job_title,
+    d.location,
+    d.source
+FROM possibilities d
+JOIN possibilities o ON o.id = d.duplicate_of
+WHERE d.category = $1
+ORDER BY o.id, d.id
+`
+
+type ListDuplicatesByCategoryRow struct {
+	OriginalID       int64       `json:"original_id"`
+	OriginalUrl      string      `json:"original_url"`
+	CompanyName      string      `json:"company_name"`
+	OriginalJobTitle string      `json:"original_job_title"`
+	OriginalLocation pgtype.Text `json:"original_location"`
+	OriginalSource   pgtype.Text `json:"original_source"`
+	OriginalTech     pgtype.Text `json:"original_tech"`
+	ID               int64       `json:"id"`
+	Url              string      `json:"url"`
+	JobTitle         string      `json:"job_title"`
+	Location         pgtype.Text `json:"location"`
+	Source           pgtype.Text `json:"source"`
+}
+
+func (q *Queries) ListDuplicatesByCategory(ctx context.Context, category string) ([]ListDuplicatesByCategoryRow, error) {
+	rows, err := q.db.Query(ctx, listDuplicatesByCategory, category)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListDuplicatesByCategoryRow
+	for rows.Next() {
+		var i ListDuplicatesByCategoryRow
+		if err := rows.Scan(
+			&i.OriginalID,
+			&i.OriginalUrl,
+			&i.CompanyName,
+			&i.OriginalJobTitle,
+			&i.OriginalLocation,
+			&i.OriginalSource,
+			&i.OriginalTech,
+			&i.ID,
+			&i.Url,
+			&i.JobTitle,
+			&i.Location,
+			&i.Source,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPossibilitiesByCategory = `-- name: ListPossibilitiesByCategory :many
-SELECT id, url, category, company_name, job_title, location, is_remote, tech, description, source, posted_at, created_at FROM possibilities
+SELECT id, url, category, company_name, job_title, location, is_remote, tech, description, source, posted_at, created_at, duplicate_of FROM possibilities
 WHERE category = $1
 ORDER BY created_at DESC, id DESC
 `
@@ -152,6 +222,7 @@ func (q *Queries) ListPossibilitiesByCategory(ctx context.Context, category stri
 			&i.Source,
 			&i.PostedAt,
 			&i.CreatedAt,
+			&i.DuplicateOf,
 		); err != nil {
 			return nil, err
 		}
@@ -212,6 +283,45 @@ func (q *Queries) ListPossibilitiesByCategoryPaged(ctx context.Context, arg List
 			&i.Source,
 			&i.PostedAt,
 			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPossibilitiesForDuplicates = `-- name: ListPossibilitiesForDuplicates :many
+SELECT id, category, company_name, tech
+FROM possibilities
+WHERE duplicate_of IS NULL AND tech IS NOT NULL
+ORDER BY id
+`
+
+type ListPossibilitiesForDuplicatesRow struct {
+	ID          int64       `json:"id"`
+	Category    string      `json:"category"`
+	CompanyName string      `json:"company_name"`
+	Tech        pgtype.Text `json:"tech"`
+}
+
+func (q *Queries) ListPossibilitiesForDuplicates(ctx context.Context) ([]ListPossibilitiesForDuplicatesRow, error) {
+	rows, err := q.db.Query(ctx, listPossibilitiesForDuplicates)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListPossibilitiesForDuplicatesRow
+	for rows.Next() {
+		var i ListPossibilitiesForDuplicatesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Category,
+			&i.CompanyName,
+			&i.Tech,
 		); err != nil {
 			return nil, err
 		}
@@ -284,6 +394,21 @@ func (q *Queries) ListPossibilitiesWithJsonFields(ctx context.Context) ([]ListPo
 		return nil, err
 	}
 	return items, nil
+}
+
+const markPossibilityDuplicate = `-- name: MarkPossibilityDuplicate :exec
+UPDATE possibilities SET tech = $2, duplicate_of = $3 WHERE id = $1
+`
+
+type MarkPossibilityDuplicateParams struct {
+	ID          int64       `json:"id"`
+	Tech        pgtype.Text `json:"tech"`
+	DuplicateOf pgtype.Int8 `json:"duplicate_of"`
+}
+
+func (q *Queries) MarkPossibilityDuplicate(ctx context.Context, arg MarkPossibilityDuplicateParams) error {
+	_, err := q.db.Exec(ctx, markPossibilityDuplicate, arg.ID, arg.Tech, arg.DuplicateOf)
+	return err
 }
 
 const statsPossibilityByCategory = `-- name: StatsPossibilityByCategory :many

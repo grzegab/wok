@@ -87,4 +87,5 @@ type Possibility struct {
 	Source      pgtype.Text        `json:"source"`
 	PostedAt    pgtype.Date        `json:"posted_at"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	DuplicateOf pgtype.Int8        `json:"duplicate_of"`
 }

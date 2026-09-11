@@ -8,12 +8,14 @@ import (
 )
 
 type fakeStore struct {
-	rows        []database.ListPossibilitiesWithJsonFieldsRow
-	techRows    []database.ListPossibilitiesTechRow
-	listErr     error
-	updateErr   error
-	updated     map[int64]database.UpdatePossibilityLocationTechParams
-	techUpdated map[int64]pgtype.Text
+	rows          []database.ListPossibilitiesWithJsonFieldsRow
+	techRows      []database.ListPossibilitiesTechRow
+	duplicateRows []database.ListPossibilitiesForDuplicatesRow
+	listErr       error
+	updateErr     error
+	updated       map[int64]database.UpdatePossibilityLocationTechParams
+	techUpdated   map[int64]pgtype.Text
+	marked        map[int64]database.MarkPossibilityDuplicateParams
 }
 
 func (s *fakeStore) ListPossibilitiesWithJsonFields(context.Context) ([]database.ListPossibilitiesWithJsonFieldsRow, error) {
@@ -44,6 +46,22 @@ func (s *fakeStore) UpdatePossibilityTech(_ context.Context, arg database.Update
 		s.techUpdated = map[int64]pgtype.Text{}
 	}
 	s.techUpdated[arg.ID] = arg.Tech
+
+	return nil
+}
+
+func (s *fakeStore) ListPossibilitiesForDuplicates(context.Context) ([]database.ListPossibilitiesForDuplicatesRow, error) {
+	return s.duplicateRows, s.listErr
+}
+
+func (s *fakeStore) MarkPossibilityDuplicate(_ context.Context, arg database.MarkPossibilityDuplicateParams) error {
+	if s.updateErr != nil {
+		return s.updateErr
+	}
+	if s.marked == nil {
+		s.marked = map[int64]database.MarkPossibilityDuplicateParams{}
+	}
+	s.marked[arg.ID] = arg
 
 	return nil
 }

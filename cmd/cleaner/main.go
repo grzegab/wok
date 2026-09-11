@@ -15,7 +15,8 @@ import (
 )
 
 // main tidies up the database once and exits: it repairs possibilities whose
-// location or tech were stored as raw JSON and normalizes technology names.
+// location or tech were stored as raw JSON, normalizes technology names and
+// marks repeated offers as duplicates.
 func main() {
 	debug := flag.Bool("D", false, "enable debug mode (verbose logging, SQL tracing)")
 	flag.Parse()
@@ -49,6 +50,12 @@ func main() {
 
 	normalized, err := c.NormalizeTech(ctx)
 	log.Printf("Normalized tech of %d possibilities\n", normalized)
+	if err != nil {
+		log.Fatalf("cleaning stopped: %v", err)
+	}
+
+	marked, err := c.MarkDuplicates(ctx)
+	log.Printf("Marked %d possibilities as duplicates\n", marked)
 	if err != nil {
 		log.Fatalf("cleaning stopped: %v", err)
 	}

@@ -40,6 +40,7 @@ func TestServerExposesOnlyReadOnlyTools(t *testing.T) {
 		"get_possibility",
 		"list_applications",
 		"list_categories",
+		"list_duplicates",
 		"list_possibilities",
 		"tech_stats",
 	}

@@ -53,3 +53,31 @@ WHERE tech IS NOT NULL AND tech NOT LIKE '{%';
 
 -- name: UpdatePossibilityTech :exec
 UPDATE possibilities SET tech = $2 WHERE id = $1;
+
+-- name: ListPossibilitiesForDuplicates :many
+SELECT id, category, company_name, tech
+FROM possibilities
+WHERE duplicate_of IS NULL AND tech IS NOT NULL
+ORDER BY id;
+
+-- name: MarkPossibilityDuplicate :exec
+UPDATE possibilities SET tech = $2, duplicate_of = $3 WHERE id = $1;
+
+-- name: ListDuplicatesByCategory :many
+SELECT
+    o.id AS original_id,
+    o.url AS original_url,
+    o.company_name,
+    o.job_title AS original_job_title,
+    o.location AS original_location,
+    o.source AS original_source,
+    o.tech AS original_tech,
+    d.id,
+    d.url,
+    d.job_title,
+    d.location,
+    d.source
+FROM possibilities d
+JOIN possibilities o ON o.id = d.duplicate_of
+WHERE d.category = $1
+ORDER BY o.id, d.id;

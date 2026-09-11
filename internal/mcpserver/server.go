@@ -44,8 +44,13 @@ func New(db *database.Queries) *mcp.Server {
 	), tools.getPossibility)
 
 	mcp.AddTool(server, readOnlyTool(
+		"list_duplicates",
+		"List the offers in one category the cleaner marked as duplicates - the same company asking for the same technologies, e.g. one offer posted for many cities - grouped under the offer that keeps the technologies. The copies have duplicate as their tech. Use it to check the copies really are the same job.",
+	), tools.listDuplicates)
+
+	mcp.AddTool(server, readOnlyTool(
 		"tech_stats",
-		"Count how many scraped offers in one category mention each technology, most frequent first. Use it to answer what a category's market asks for.",
+		"Count how many scraped offers in one category mention each technology, most frequent first. Use it to answer what a category's market asks for. Offers repeating another offer are counted under duplicate instead of their technologies.",
 	), tools.techStats)
 
 	return server

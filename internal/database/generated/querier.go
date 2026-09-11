@@ -17,10 +17,13 @@ type Querier interface {
 	GetApplication(ctx context.Context, id int64) (Application, error)
 	GetPossibility(ctx context.Context, id int64) (Possibility, error)
 	ListApplications(ctx context.Context) ([]Application, error)
+	ListDuplicatesByCategory(ctx context.Context, category string) ([]ListDuplicatesByCategoryRow, error)
 	ListPossibilitiesByCategory(ctx context.Context, category string) ([]Possibility, error)
 	ListPossibilitiesByCategoryPaged(ctx context.Context, arg ListPossibilitiesByCategoryPagedParams) ([]ListPossibilitiesByCategoryPagedRow, error)
+	ListPossibilitiesForDuplicates(ctx context.Context) ([]ListPossibilitiesForDuplicatesRow, error)
 	ListPossibilitiesTech(ctx context.Context) ([]ListPossibilitiesTechRow, error)
 	ListPossibilitiesWithJsonFields(ctx context.Context) ([]ListPossibilitiesWithJsonFieldsRow, error)
+	MarkPossibilityDuplicate(ctx context.Context, arg MarkPossibilityDuplicateParams) error
 	StatsPossibilityByCategory(ctx context.Context, category string) ([]StatsPossibilityByCategoryRow, error)
 	UpdateApplication(ctx context.Context, arg UpdateApplicationParams) (Application, error)
 	UpdatePossibilityLocationTech(ctx context.Context, arg UpdatePossibilityLocationTechParams) error

@@ -76,6 +76,12 @@ DROP INDEX IF EXISTS possibilities_category_posted_at_idx;
 CREATE INDEX IF NOT EXISTS possibilities_category_created_at_idx
     ON possibilities (category, created_at DESC, id DESC);
 
+ALTER TABLE possibilities
+    ADD COLUMN IF NOT EXISTS duplicate_of BIGINT REFERENCES possibilities (id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS possibilities_duplicate_of_idx
+    ON possibilities (duplicate_of);
+
 SELECT schemaname, indexname FROM pg_indexes WHERE tablename = 'possibilities';
 \d possibilities
 SQL

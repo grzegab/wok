@@ -31,8 +31,12 @@ CREATE TABLE possibilities (
     description TEXT,
     source TEXT,
     posted_at DATE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    duplicate_of BIGINT REFERENCES possibilities (id) ON DELETE SET NULL
 );
 
 CREATE INDEX IF NOT EXISTS possibilities_category_created_at_idx
     ON possibilities (category, created_at DESC, id DESC);
+
+CREATE INDEX IF NOT EXISTS possibilities_duplicate_of_idx
+    ON possibilities (duplicate_of);

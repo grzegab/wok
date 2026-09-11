@@ -76,8 +76,8 @@ mcp:
 mcp-deploy: mcp
 	scp bin/wok-mcp $(WOK_SSH_HOST):$(WOK_REMOTE_DIR)/bin/wok-mcp
 
-# Clean the database once: repair JSON location/tech and normalize technology
-# names. Runs on the VPS host from a binary built out of the current code, so
+# Clean the database once: repair JSON location/tech, normalize technology
+# names and mark repeated offers as duplicates. Runs on the VPS host from a binary built out of the current code, so
 # after a git pull it picks up the changes. Postgres is on the loopback because
 # .env names the Compose service, which the host cannot resolve. Safe to
 # repeat, so cron can run it: cd /opt/wok && make cleaner

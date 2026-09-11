@@ -5,6 +5,10 @@ import (
 	"strings"
 )
 
+// Duplicate is stored as the tech of an offer that repeats another one, so its
+// technologies are counted once and the copies show up in stats under this name.
+const Duplicate = "duplicate"
+
 // aliases groups technologies that are counted as one under a shared name.
 var aliases = map[string]string{
 	"javascript":       "typescript/javascript",

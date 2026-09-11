@@ -31,10 +31,10 @@ Application written in Go, with frontend in gohtml. Database simple noSQL for ke
 
 ## MCP server
 
-`cmd/mcp` hands the database to an MCP client - Claude Code, for one - as six read-only
+`cmd/mcp` hands the database to an MCP client - Claude Code, for one - as seven read-only
 tools: `list_categories`, `list_applications`, `get_application`, `list_possibilities`,
-`get_possibility` and `tech_stats`. There is no arbitrary-SQL tool: the only statements
-that can run are the sqlc queries behind those six, and the pool connects with
+`get_possibility`, `list_duplicates` and `tech_stats`. There is no arbitrary-SQL tool: the
+only statements that can run are the sqlc queries behind those seven, and the pool connects with
 `default_transaction_read_only=on` on top of that.
 
 It talks stdio and the client starts it over ssh, so nothing listens publicly and the ssh
@@ -93,6 +93,15 @@ stores today, and then brings every tech list to the normalized form the crawler
 (`technology.Normalize`: lowercase, JavaScript and TypeScript grouped as
 `typescript/javascript`, no duplicates). Rows already in shape are left alone, so it is safe
 to run again.
+
+Last it marks repeated offers - the same company asking for the same technologies in one
+category, like EPAM posting one offer for many cities. The oldest offer keeps its tech; every
+later copy gets `duplicate` as its tech and `duplicate_of` pointing at the kept offer. Copies
+are not deleted, since the next crawl would only bring them back; the crawler never rewrites
+the tech of an offer it already has, and each run marks the copies scraped since. Stats count
+the copies under `duplicate`, so they show how many repeated offers come in. The MCP
+`list_duplicates` tool shows what got grouped, to check the rule does not catch different
+jobs.
 
 It is a plain binary, not part of the Compose stack. The VPS has no Go toolchain, so
 `make cleaner` builds it from the current code in a throwaway `golang` container
