@@ -24,14 +24,35 @@ type RawOffer struct {
 	Url         string         `json:"url"`
 	CompanyName string         `json:"name"`
 	JobTitle    string         `json:"title"`
-	Location    jsontext.Value `json:"location"`
+	Location    Location       `json:"location"`
 	IsRemote    bool           `json:"fullyRemote"`
 	MainTech    jsontext.Value `json:"technology"`
-	Tech        jsontext.Value `json:"tiles"`
+	Tech        Tiles          `json:"tiles"`
 	Source      string         `json:"source"`
 	PostedAt    int            `json:"posted"`
 	Category    string
 	Description string
+}
+
+// Location lists the places an offer is open in. A place can name just a
+// province, leaving its city empty.
+type Location struct {
+	Places []Place `json:"places"`
+}
+
+type Place struct {
+	City string `json:"city"`
+}
+
+// Tiles are the labels nofluff pins to an offer: its category plus the
+// technologies it requires.
+type Tiles struct {
+	Values []Tile `json:"values"`
+}
+
+type Tile struct {
+	Value string `json:"value"`
+	Type  string `json:"type"`
 }
 
 type Fetcher struct {

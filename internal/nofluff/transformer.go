@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 )
@@ -94,12 +95,37 @@ func (ot *OfferTransformer) ConvertOffer(offer RawOffer) (database.CreatePossibi
 		Url:         offer.Url,
 		CompanyName: offer.CompanyName,
 		JobTitle:    offer.JobTitle,
-		Location:    optText(string(offer.Location)),
-		Tech:        optText(string(offer.Tech)),
+		Location:    optText(cities(offer.Location)),
+		Tech:        optText(requirements(offer.Tech)),
 		Description: optText(offer.Description),
 		PostedAt:    epochMillisDate(offer.PostedAt),
 		Source:      optText(offer.Source),
 	}, nil
+}
+
+// cities lists the distinct cities an offer is open in, comma separated.
+func cities(l Location) string {
+	var names []string
+	for _, p := range l.Places {
+		if p.City != "" && !slices.Contains(names, p.City) {
+			names = append(names, p.City)
+		}
+	}
+
+	return strings.Join(names, ", ")
+}
+
+// requirements lists the technologies an offer requires, comma separated like
+// the other sources store them. The category tile is not a technology.
+func requirements(t Tiles) string {
+	var techs []string
+	for _, v := range t.Values {
+		if v.Type == "requirement" {
+			techs = append(techs, v.Value)
+		}
+	}
+
+	return strings.Join(techs, ", ")
 }
 
 // epochMillisDate converts the "posted" field, a Unix epoch in milliseconds,
