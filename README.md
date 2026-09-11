@@ -42,25 +42,22 @@ key is the only credential involved.
 
 ### Deploy
 
-```
-make mcp-deploy                                   # defaults to wok-vps:/opt/wok
-make mcp-deploy WOK_SSH_HOST=root@1.2.3.4 WOK_REMOTE_DIR=/srv/wok
-```
-
-The binary is not part of the Compose stack, so a plain `scp` is the whole deploy. It runs
-on the VPS host and reaches Postgres on the loopback, which is why the `postgres` service
-publishes `127.0.0.1:5432`; `make deploy` has to have run once since that was added.
+It is the `mcp` service of the Compose stack, in the `tools` profile so `make up` does not
+start it: every client session gets its own throwaway container from
+`docker compose run -T mcp`, on the Compose network next to Postgres. `make deploy` builds
+its image along with the rest, so there is nothing to deploy separately.
 
 ### Register with Claude Code
 
 ```
-claude mcp add wok-db -s user -- ssh wok-vps 'cd /opt/wok && POSTGRES_HOST=127.0.0.1 exec bin/wok-mcp'
+claude mcp add wok-db -s user -- ssh wok-vps 'cd /opt/wok && exec docker compose run --rm -T mcp'
 ```
 
-Both halves of that command matter. `cd` is needed because config comes from the `.env` in
-the working directory and `ssh host cmd` starts in `$HOME`. `POSTGRES_HOST` has to be
-overridden because `.env` names the Compose service, which does not resolve from the host;
-godotenv leaves variables already set in the environment alone, so the override wins.
+`cd` is needed because `docker compose` looks for `docker-compose.yaml` (and the `.env` it
+fills the Postgres credentials from) in the working directory, and `ssh host cmd` starts in
+`$HOME`. `-T` keeps a terminal off the session: stdin and stdout have to be the raw JSON-RPC
+stream. The ssh user has to be able to run docker without a password - root, or a member of
+the `docker` group; `sudo` would ask for one and hang the session.
 
 An `~/.ssh/config` entry keeps the command short and the session from idling out:
 
@@ -79,11 +76,11 @@ printf '%s\n' \
   '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"t","version":"1"}}}' \
   '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
   '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"tech_stats","arguments":{"category":"go"}}}' \
-| ssh wok-vps 'cd /opt/wok && POSTGRES_HOST=127.0.0.1 ./bin/wok-mcp'
+| ssh wok-vps 'cd /opt/wok && docker compose run --rm -T mcp'
 ```
 
-Two JSON-RPC responses come back on stdout and nothing else - every log line goes to
-stderr, because anything else on stdout corrupts the protocol.
+Two JSON-RPC responses come back on stdout and nothing else - every log line, the server's
+and Compose's own, goes to stderr, because anything else on stdout corrupts the protocol.
 
 ## Database cleaner
 
@@ -103,10 +100,9 @@ the copies under `duplicate`, so they show how many repeated offers come in. The
 `list_duplicates` tool shows what got grouped, to check the rule does not catch different
 jobs.
 
-It is a plain binary, not part of the Compose stack. The VPS has no Go toolchain, so
-`make cleaner` builds it from the current code in a throwaway `golang` container
-(`make cleaner-build` does just that step) and then runs it on the VPS host against
-Postgres on the loopback (the same `127.0.0.1:5432` the MCP server uses):
+It is the `cleaner` service of the Compose stack, in the `tools` profile so `make up` does
+not start it. `make cleaner` runs it once in a throwaway container of the image the last
+`make deploy` built, so it runs the deployed code:
 
 ```
 cd /opt/wok && make cleaner

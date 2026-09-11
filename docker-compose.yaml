@@ -1,3 +1,11 @@
+# Connection settings of every service that talks to Postgres.
+x-postgres-env: &postgres-env
+  POSTGRES_HOST: postgres
+  POSTGRES_PORT: 5432
+  POSTGRES_USER: ${POSTGRES_USER:-wok}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wok}
+  POSTGRES_DB: ${POSTGRES_DB:-wok}
+
 services:
   redis:
     image: redis:latest
@@ -6,10 +14,6 @@ services:
   postgres:
     image: postgres:17-alpine
     restart: always
-    # Loopback only: bin/wok-mcp runs on the VPS host (driven over ssh by an MCP
-    # client) and reaches the database here, without opening it to the network.
-    ports:
-      - "127.0.0.1:5432:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-wok}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wok}
@@ -31,12 +35,8 @@ services:
     ports:
       - "80:80"
     environment:
+      <<: *postgres-env
       REDIS_ADDR: redis:6379
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
-      POSTGRES_USER: ${POSTGRES_USER:-wok}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wok}
-      POSTGRES_DB: ${POSTGRES_DB:-wok}
       WEB_ADDR: ${WEB_ADDR:-:80}
       SENTRY_DSN: ${SENTRY_DSN:-}
       LOGIN_USER: ${LOGIN_USER}
@@ -56,12 +56,31 @@ services:
     # PID 1. The Go binary never reaps them, so without an init they pile up
     # as zombies until fork/pthread_create start failing with EAGAIN.
     init: true
-    environment:
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
-      POSTGRES_USER: ${POSTGRES_USER:-wok}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wok}
-      POSTGRES_DB: ${POSTGRES_DB:-wok}
+    environment: *postgres-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # One-off jobs, not part of the always-on stack: the tools profile keeps
+  # `up` from starting them, `docker compose run` starts one when needed.
+  cleaner:
+    build:
+      context: .
+      dockerfile: docker/cleaner/Dockerfile
+    profiles: [tools]
+    environment: *postgres-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # One MCP session per run, over the stdin/stdout of `docker compose run -T`,
+  # which an MCP client drives through ssh.
+  mcp:
+    build:
+      context: .
+      dockerfile: docker/mcp/Dockerfile
+    profiles: [tools]
+    environment: *postgres-env
     depends_on:
       postgres:
         condition: service_healthy

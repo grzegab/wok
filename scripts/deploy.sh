@@ -35,7 +35,7 @@ step "Pulling the new code"
 git pull --ff-only
 
 step "Rebuilding the images"
-$DOCKER compose build
+make build
 
 step "Starting postgres"
 $DOCKER compose up -d postgres

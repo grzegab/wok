@@ -6,10 +6,15 @@ the **project root** so it can access the whole module:
 - `docker/web/Dockerfile` — the HTTP panel (`cmd/web`)
 - `docker/crawler/Dockerfile` — the job-offer crawler (`cmd/crawler`)
 - `docker/hashgen/Dockerfile` — one-off CLI to generate a bcrypt hash for `LOGIN_PASS_HASH` (`cmd/hashgen`)
+- `docker/cleaner/Dockerfile` — one-off database cleaner (`cmd/cleaner`)
+- `docker/mcp/Dockerfile` — MCP server an MCP client drives over ssh (`cmd/mcp`)
 
 ## Running the full stack
 
 `docker-compose.yaml` at the project root wires up `redis`, `postgres`, `web` and `crawler`.
+`cleaner` and `mcp` are in it too, under the `tools` profile: `make up` leaves them out, and
+each run is a throwaway `docker compose run --rm -T <service>` container (`make cleaner`,
+the MCP client's ssh command). `make build` and the deploy build their images as well.
 Use the Makefile targets rather than calling `docker compose`/`docker build` directly:
 
 ```bash
