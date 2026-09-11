@@ -19,8 +19,12 @@ type Querier interface {
 	ListApplications(ctx context.Context) ([]Application, error)
 	ListPossibilitiesByCategory(ctx context.Context, category string) ([]Possibility, error)
 	ListPossibilitiesByCategoryPaged(ctx context.Context, arg ListPossibilitiesByCategoryPagedParams) ([]ListPossibilitiesByCategoryPagedRow, error)
+	ListPossibilitiesTech(ctx context.Context) ([]ListPossibilitiesTechRow, error)
+	ListPossibilitiesWithJsonFields(ctx context.Context) ([]ListPossibilitiesWithJsonFieldsRow, error)
 	StatsPossibilityByCategory(ctx context.Context, category string) ([]StatsPossibilityByCategoryRow, error)
 	UpdateApplication(ctx context.Context, arg UpdateApplicationParams) (Application, error)
+	UpdatePossibilityLocationTech(ctx context.Context, arg UpdatePossibilityLocationTechParams) error
+	UpdatePossibilityTech(ctx context.Context, arg UpdatePossibilityTechParams) error
 }
 
 var _ Querier = (*Queries)(nil)

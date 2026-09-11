@@ -85,6 +85,30 @@ printf '%s\n' \
 Two JSON-RPC responses come back on stdout and nothing else - every log line goes to
 stderr, because anything else on stdout corrupts the protocol.
 
+## Database cleaner
+
+`cmd/cleaner` runs once and exits. It repairs possibilities whose location or tech the
+crawler used to store as raw nofluff JSON, turning them into the comma separated lists it
+stores today, and then brings every tech list to the normalized form the crawlers store
+(`technology.Normalize`: lowercase, JavaScript and TypeScript grouped as
+`typescript/javascript`, no duplicates). Rows already in shape are left alone, so it is safe
+to run again.
+
+It is a plain binary, not part of the Compose stack. The VPS has no Go toolchain, so it is
+cross-compiled locally and shipped, then run on the VPS host against Postgres on the
+loopback (the same `127.0.0.1:5432` the MCP server uses):
+
+```
+make cleaner-deploy               # locally, after every change to the cleaner
+```
+
+Take a `make db-backup` first - the rewrite cannot be undone. From cron, e.g. every night
+at 3:
+
+```
+0 3 * * * cd /opt/wok && make cleaner >> /var/log/wok-cleaner.log 2>&1
+```
+
 ## Roadmap
 
 

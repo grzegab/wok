@@ -67,7 +67,7 @@ func TestConvertOfferStoresOnlyCitiesAsLocation(t *testing.T) {
 	}
 }
 
-func TestConvertOfferStoresRequirementsAsCommaSeparatedList(t *testing.T) {
+func TestConvertOfferStoresNormalizedRequirementsAsCommaSeparatedList(t *testing.T) {
 	tests := []struct {
 		name  string
 		tiles string
@@ -75,14 +75,14 @@ func TestConvertOfferStoresRequirementsAsCommaSeparatedList(t *testing.T) {
 		valid bool
 	}{
 		{
-			name: "joins requirements and leaves out the category",
+			name: "joins normalized requirements and leaves out the category",
 			tiles: `{"values":[
 				{"value":"business-analyst","type":"category"},
 				{"value":"C++","type":"requirement"},
 				{"value":"Java","type":"requirement"},
-				{"value":"Python","type":"requirement"}
+				{"value":"TypeScript","type":"requirement"}
 			]}`,
-			want:  "C++, Java, Python",
+			want:  "c++, java, typescript/javascript",
 			valid: true,
 		},
 		{

@@ -9,6 +9,7 @@ import (
 
 	"github.com/chromedp/chromedp"
 	database "github.com/grzegab/wok/internal/database/generated"
+	"github.com/grzegab/wok/internal/technology"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -237,7 +238,7 @@ func scrapeOffer(browserCtx context.Context, url, category string) (database.Cre
 		CompanyName: companyName,
 		JobTitle:    jobTitle,
 		Location:    optText(location),
-		Tech:        optText(stack),
+		Tech:        optText(technology.Normalize(stack)),
 		Description: optText(description),
 		PostedAt:    optDate(published),
 		Source:      optText(source),

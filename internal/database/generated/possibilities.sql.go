@@ -223,6 +223,69 @@ func (q *Queries) ListPossibilitiesByCategoryPaged(ctx context.Context, arg List
 	return items, nil
 }
 
+const listPossibilitiesTech = `-- name: ListPossibilitiesTech :many
+SELECT id, tech
+FROM possibilities
+WHERE tech IS NOT NULL AND tech NOT LIKE '{%'
+`
+
+type ListPossibilitiesTechRow struct {
+	ID   int64       `json:"id"`
+	Tech pgtype.Text `json:"tech"`
+}
+
+func (q *Queries) ListPossibilitiesTech(ctx context.Context) ([]ListPossibilitiesTechRow, error) {
+	rows, err := q.db.Query(ctx, listPossibilitiesTech)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListPossibilitiesTechRow
+	for rows.Next() {
+		var i ListPossibilitiesTechRow
+		if err := rows.Scan(&i.ID, &i.Tech); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPossibilitiesWithJsonFields = `-- name: ListPossibilitiesWithJsonFields :many
+SELECT id, location, tech
+FROM possibilities
+WHERE location LIKE '{%' OR tech LIKE '{%'
+`
+
+type ListPossibilitiesWithJsonFieldsRow struct {
+	ID       int64       `json:"id"`
+	Location pgtype.Text `json:"location"`
+	Tech     pgtype.Text `json:"tech"`
+}
+
+func (q *Queries) ListPossibilitiesWithJsonFields(ctx context.Context) ([]ListPossibilitiesWithJsonFieldsRow, error) {
+	rows, err := q.db.Query(ctx, listPossibilitiesWithJsonFields)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListPossibilitiesWithJsonFieldsRow
+	for rows.Next() {
+		var i ListPossibilitiesWithJsonFieldsRow
+		if err := rows.Scan(&i.ID, &i.Location, &i.Tech); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const statsPossibilityByCategory = `-- name: StatsPossibilityByCategory :many
 SELECT
     trim(t) AS technology,
@@ -257,4 +320,33 @@ func (q *Queries) StatsPossibilityByCategory(ctx context.Context, category strin
 		return nil, err
 	}
 	return items, nil
+}
+
+const updatePossibilityLocationTech = `-- name: UpdatePossibilityLocationTech :exec
+UPDATE possibilities SET location = $2, tech = $3 WHERE id = $1
+`
+
+type UpdatePossibilityLocationTechParams struct {
+	ID       int64       `json:"id"`
+	Location pgtype.Text `json:"location"`
+	Tech     pgtype.Text `json:"tech"`
+}
+
+func (q *Queries) UpdatePossibilityLocationTech(ctx context.Context, arg UpdatePossibilityLocationTechParams) error {
+	_, err := q.db.Exec(ctx, updatePossibilityLocationTech, arg.ID, arg.Location, arg.Tech)
+	return err
+}
+
+const updatePossibilityTech = `-- name: UpdatePossibilityTech :exec
+UPDATE possibilities SET tech = $2 WHERE id = $1
+`
+
+type UpdatePossibilityTechParams struct {
+	ID   int64       `json:"id"`
+	Tech pgtype.Text `json:"tech"`
+}
+
+func (q *Queries) UpdatePossibilityTech(ctx context.Context, arg UpdatePossibilityTechParams) error {
+	_, err := q.db.Exec(ctx, updatePossibilityTech, arg.ID, arg.Tech)
+	return err
 }

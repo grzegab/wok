@@ -1,4 +1,4 @@
-.PHONY: up down build logs sqlc hashgen deploy db-backup db-dump db-restore db-reset crawler mcp mcp-deploy
+.PHONY: up down build logs sqlc hashgen deploy db-backup db-dump db-restore db-reset crawler mcp mcp-deploy cleaner cleaner-deploy
 
 BACKUP_DIR := backups
 
@@ -71,3 +71,14 @@ mcp:
 # per session over ssh, so a plain scp is the whole deploy.
 mcp-deploy: mcp
 	scp bin/wok-mcp $(WOK_SSH_HOST):$(WOK_REMOTE_DIR)/bin/wok-mcp
+
+# Clean the database once: repair JSON location/tech and normalize technology
+# names. Runs on the VPS host, from the binary cleaner-deploy shipped there;
+# Postgres is on the loopback because .env names the Compose service, which the
+# host cannot resolve. Safe to repeat, so cron can run it: cd /opt/wok && make cleaner
+cleaner:
+	POSTGRES_HOST=127.0.0.1 ./bin/wok-cleaner
+
+# Cross-compile the cleaner and ship it to the VPS (run locally, like mcp-deploy)
+cleaner-deploy:
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/wok-cleaner ./cmd/cleaner

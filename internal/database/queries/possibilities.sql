@@ -37,3 +37,19 @@ FROM possibilities
 WHERE category = $1
 ORDER BY created_at DESC, id DESC
 LIMIT $2 OFFSET $3;
+
+-- name: ListPossibilitiesWithJsonFields :many
+SELECT id, location, tech
+FROM possibilities
+WHERE location LIKE '{%' OR tech LIKE '{%';
+
+-- name: UpdatePossibilityLocationTech :exec
+UPDATE possibilities SET location = $2, tech = $3 WHERE id = $1;
+
+-- name: ListPossibilitiesTech :many
+SELECT id, tech
+FROM possibilities
+WHERE tech IS NOT NULL AND tech NOT LIKE '{%';
+
+-- name: UpdatePossibilityTech :exec
+UPDATE possibilities SET tech = $2 WHERE id = $1;

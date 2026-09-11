@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	database "github.com/grzegab/wok/internal/database/generated"
+	"github.com/grzegab/wok/internal/technology"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"io"
@@ -95,16 +96,16 @@ func (ot *OfferTransformer) ConvertOffer(offer RawOffer) (database.CreatePossibi
 		Url:         offer.Url,
 		CompanyName: offer.CompanyName,
 		JobTitle:    offer.JobTitle,
-		Location:    optText(cities(offer.Location)),
-		Tech:        optText(requirements(offer.Tech)),
+		Location:    optText(offer.Location.Cities()),
+		Tech:        optText(technology.Normalize(offer.Tech.Requirements())),
 		Description: optText(offer.Description),
 		PostedAt:    epochMillisDate(offer.PostedAt),
 		Source:      optText(offer.Source),
 	}, nil
 }
 
-// cities lists the distinct cities an offer is open in, comma separated.
-func cities(l Location) string {
+// Cities lists the distinct cities an offer is open in, comma separated.
+func (l Location) Cities() string {
 	var names []string
 	for _, p := range l.Places {
 		if p.City != "" && !slices.Contains(names, p.City) {
@@ -115,9 +116,9 @@ func cities(l Location) string {
 	return strings.Join(names, ", ")
 }
 
-// requirements lists the technologies an offer requires, comma separated like
+// Requirements lists the technologies an offer requires, comma separated like
 // the other sources store them. The category tile is not a technology.
-func requirements(t Tiles) string {
+func (t Tiles) Requirements() string {
 	var techs []string
 	for _, v := range t.Values {
 		if v.Type == "requirement" {
