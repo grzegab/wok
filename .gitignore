@@ -108,3 +108,4 @@ go.work.sum
 /backups/
 
 bin/wok-mcp
+/bin/wok-cleaner

@@ -94,16 +94,17 @@ stores today, and then brings every tech list to the normalized form the crawler
 `typescript/javascript`, no duplicates). Rows already in shape are left alone, so it is safe
 to run again.
 
-It is a plain binary, not part of the Compose stack. The VPS has no Go toolchain, so it is
-cross-compiled locally and shipped, then run on the VPS host against Postgres on the
-loopback (the same `127.0.0.1:5432` the MCP server uses):
+It is a plain binary, not part of the Compose stack. The VPS has no Go toolchain, so
+`make cleaner` builds it from the current code in a throwaway `golang` container
+(`make cleaner-build` does just that step) and then runs it on the VPS host against
+Postgres on the loopback (the same `127.0.0.1:5432` the MCP server uses):
 
 ```
-make cleaner-deploy               # locally, after every change to the cleaner
+cd /opt/wok && make cleaner
 ```
 
-Take a `make db-backup` first - the rewrite cannot be undone. From cron, e.g. every night
-at 3:
+Take a `make db-backup` first - the rewrite cannot be undone. From root's crontab (so
+docker needs no sudo), e.g. every night at 3:
 
 ```
 0 3 * * * cd /opt/wok && make cleaner >> /var/log/wok-cleaner.log 2>&1
