@@ -18,6 +18,7 @@ const (
 	ApplicationStatusProgress ApplicationStatus = "progress"
 	ApplicationStatusFailed   ApplicationStatus = "failed"
 	ApplicationStatusAbandon  ApplicationStatus = "abandon"
+	ApplicationStatusAccepted ApplicationStatus = "accepted"
 )
 
 func (e *ApplicationStatus) Scan(src interface{}) error {

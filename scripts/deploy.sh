@@ -71,6 +71,8 @@ END $$;
 
 ALTER TABLE possibilities ADD COLUMN IF NOT EXISTS source TEXT;
 
+ALTER TYPE application_status ADD VALUE IF NOT EXISTS 'accepted';
+
 DROP INDEX IF EXISTS possibilities_category_posted_at_idx;
 
 CREATE INDEX IF NOT EXISTS possibilities_category_created_at_idx

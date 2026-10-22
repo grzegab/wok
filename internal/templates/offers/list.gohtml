@@ -37,6 +37,7 @@
                     {{ else if eq .Status "progress" }}<span class="badge text-bg-warning">progress</span>
                     {{ else if eq .Status "failed" }}<span class="badge text-bg-danger">failed</span>
                     {{ else if eq .Status "abandon" }}<span class="badge text-bg-secondary">abandon</span>
+                    {{ else if eq .Status "accepted" }}<span class="badge text-bg-success">accepted</span>
                     {{ else }}<span class="badge text-bg-light border">{{ .Status }}</span>{{ end }}
                 </td>
                 <td>

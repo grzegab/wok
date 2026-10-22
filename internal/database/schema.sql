@@ -1,4 +1,4 @@
-CREATE TYPE application_status AS ENUM ('applied', 'progress', 'failed', 'abandon');
+CREATE TYPE application_status AS ENUM ('applied', 'progress', 'failed', 'abandon', 'accepted');
 
 CREATE TABLE applications (
     id                BIGSERIAL PRIMARY KEY,

@@ -21,7 +21,7 @@ type Application struct {
 	ID              int64     `json:"id"`
 	CompanyName     string    `json:"company_name"`
 	ApplicationDate string    `json:"application_date" jsonschema:"date the CV was sent, YYYY-MM-DD"`
-	Status          string    `json:"status" jsonschema:"one of: applied, progress, failed, abandon"`
+	Status          string    `json:"status" jsonschema:"one of: applied, progress (recruitment in progress), failed, abandon, accepted (hired after all stages)"`
 	HadChat         bool      `json:"had_chat"`
 	StartingPrice   *int32    `json:"starting_price" jsonschema:"bottom of the salary range offered by the company"`
 	EndingPrice     *int32    `json:"ending_price" jsonschema:"top of the salary range offered by the company"`
