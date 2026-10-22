@@ -107,7 +107,7 @@ func testScrapedTemplate(t *testing.T) *template.Template {
 // used to exercise the stats route without a real database.
 type fakePossibilityStatsStore struct{}
 
-func (s *fakePossibilityStatsStore) StatsPossibilityByCategory(_ context.Context, _ string) ([]database.StatsPossibilityByCategoryRow, error) {
+func (s *fakePossibilityStatsStore) TechTrendByCategory(_ context.Context, _ database.TechTrendByCategoryParams) ([]database.TechTrendByCategoryRow, error) {
 	return nil, nil
 }
 

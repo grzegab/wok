@@ -23,7 +23,7 @@ type Querier interface {
 	ListPossibilitiesTech(ctx context.Context) ([]ListPossibilitiesTechRow, error)
 	ListPossibilitiesWithJsonFields(ctx context.Context) ([]ListPossibilitiesWithJsonFieldsRow, error)
 	MarkPossibilityDuplicate(ctx context.Context, arg MarkPossibilityDuplicateParams) error
-	StatsPossibilityByCategory(ctx context.Context, category string) ([]StatsPossibilityByCategoryRow, error)
+	TechTrendByCategory(ctx context.Context, arg TechTrendByCategoryParams) ([]TechTrendByCategoryRow, error)
 	UpdateApplication(ctx context.Context, arg UpdateApplicationParams) (Application, error)
 	UpdatePossibilityLocationTech(ctx context.Context, arg UpdatePossibilityLocationTechParams) error
 	UpdatePossibilityTech(ctx context.Context, arg UpdatePossibilityTechParams) error

@@ -74,8 +74,11 @@ type DuplicateGroup struct {
 }
 
 type TechStat struct {
-	Technology string `json:"technology"`
-	Count      int64  `json:"count"`
+	Technology    string  `json:"technology"`
+	Count         int64   `json:"count" jsonschema:"offers mentioning it in the last days"`
+	Share         float64 `json:"share" jsonschema:"percent of the period's offers mentioning it"`
+	PreviousCount int64   `json:"previous_count" jsonschema:"offers mentioning it in the period before"`
+	PreviousShare float64 `json:"previous_share" jsonschema:"percent of the previous period's offers mentioning it"`
 }
 
 type Category struct {

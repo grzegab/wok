@@ -5,14 +5,22 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"slices"
+	"strconv"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/grzegab/wok/internal/category"
 	database "github.com/grzegab/wok/internal/database/generated"
 )
 
+const defaultStatsPeriodDays = 30
+
+var statsPeriodDays = []int{7, 30, 90}
+
 type PossibilityStatsStore interface {
-	StatsPossibilityByCategory(ctx context.Context, category string) ([]database.StatsPossibilityByCategoryRow, error)
+	TechTrendByCategory(ctx context.Context, arg database.TechTrendByCategoryParams) ([]database.TechTrendByCategoryRow, error)
 }
 
 type IStatsHandler interface {
@@ -26,14 +34,22 @@ type StatsHandler struct {
 }
 
 type technologyRow struct {
-	Technology string
-	Count      int64
+	Technology    string
+	CurrentCount  int64
+	PreviousCount int64
+	CurrentShare  float64
+	PreviousShare float64
+	Change        float64
 }
 
 type statsPageData struct {
-	Page         string
-	Category     category.Category
-	Technologies []technologyRow
+	Page          string
+	Category      category.Category
+	Days          int
+	Periods       []int
+	CurrentTotal  int64
+	PreviousTotal int64
+	Technologies  []technologyRow
 }
 
 func NewStatsHandler(store PossibilityStatsStore, tmpl *template.Template, timeout time.Duration) *StatsHandler {
@@ -47,26 +63,56 @@ func (h *StatsHandler) Stats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	days, ok := statsPeriod(r.URL.Query().Get("days"))
+	if !ok {
+		http.Error(w, "days must be one of 7, 30, 90", http.StatusBadRequest)
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(r.Context(), h.timeout)
 	defer cancel()
 
-	stats, err := h.store.StatsPossibilityByCategory(ctx, cat.Name)
+	currentStart := time.Now().AddDate(0, 0, -days)
+	stats, err := h.store.TechTrendByCategory(ctx, database.TechTrendByCategoryParams{
+		Category:      cat.Name,
+		CurrentStart:  pgtype.Timestamptz{Time: currentStart, Valid: true},
+		PreviousStart: pgtype.Timestamptz{Time: currentStart.AddDate(0, 0, -days), Valid: true},
+	})
 	if err != nil {
-		log.Printf("could not get possibility stats for %s: %v", cat.Name, err)
+		log.Printf("could not get technology trend for %s: %v", cat.Name, err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
-	rows := make([]technologyRow, 0, len(stats))
+	data := statsPageData{Page: "stats", Category: cat, Days: days, Periods: statsPeriodDays}
+	data.Technologies = make([]technologyRow, 0, len(stats))
 	for _, s := range stats {
-		rows = append(rows, technologyRow{Technology: s.Technology, Count: s.Count})
+		data.CurrentTotal, data.PreviousTotal = s.CurrentTotal, s.PreviousTotal
+		data.Technologies = append(data.Technologies, technologyRow{
+			Technology:    s.Technology,
+			CurrentCount:  s.CurrentCount,
+			PreviousCount: s.PreviousCount,
+			CurrentShare:  s.CurrentShare,
+			PreviousShare: s.PreviousShare,
+			Change:        s.CurrentShare - s.PreviousShare,
+		})
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
-	data := statsPageData{Page: "stats", Category: cat, Technologies: rows}
 	if err := h.template.ExecuteTemplate(w, "stats/stats", data); err != nil {
 		log.Printf("could not execute stats template: %v", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 	}
+}
+
+func statsPeriod(value string) (int, bool) {
+	if value == "" {
+		return defaultStatsPeriodDays, true
+	}
+	days, err := strconv.Atoi(value)
+	if err != nil || !slices.Contains(statsPeriodDays, days) {
+		return 0, false
+	}
+	return days, true
 }

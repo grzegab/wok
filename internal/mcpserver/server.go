@@ -50,7 +50,7 @@ func New(db *database.Queries) *mcp.Server {
 
 	mcp.AddTool(server, readOnlyTool(
 		"tech_stats",
-		"Count how many scraped offers in one category mention each technology, most frequent first. Use it to answer what a category's market asks for. Offers repeating another offer are counted under duplicate instead of their technologies.",
+		"Count how many scraped offers in one category mention each technology over the last days (default 30), with each technology's share of offers and the same numbers for the period right before, most frequent first. Use it to answer what a category's market asks for and how that is trending. Duplicate offers are excluded.",
 	), tools.techStats)
 
 	return server

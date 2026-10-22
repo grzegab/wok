@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/grzegab/wok/internal/category"
@@ -17,6 +19,8 @@ import (
 const (
 	defaultPossibilityLimit = 50
 	maxPossibilityLimit     = 200
+	defaultTechStatsDays    = 30
+	maxTechStatsDays        = 365
 )
 
 type toolset struct {
@@ -70,11 +74,15 @@ type DuplicatesOutput struct {
 
 type TechStatsInput struct {
 	Category string `json:"category" jsonschema:"category name or slug, as returned by list_categories"`
+	Days     int    `json:"days,omitempty" jsonschema:"length of the period in days, 1-365, defaults to 30; it is compared with the same-length period right before it"`
 }
 
 type TechStatsOutput struct {
-	Category     string     `json:"category"`
-	Technologies []TechStat `json:"technologies" jsonschema:"technologies ordered by how many offers mention them, most frequent first"`
+	Category      string     `json:"category"`
+	Days          int        `json:"days"`
+	OffersCount   int64      `json:"offers_count" jsonschema:"offers scraped in the period, duplicates excluded"`
+	PreviousCount int64      `json:"previous_offers_count" jsonschema:"offers scraped in the previous period, duplicates excluded"`
+	Technologies  []TechStat `json:"technologies" jsonschema:"technologies ordered by how many offers in the period mention them, most frequent first"`
 }
 
 func (t *toolset) listCategories(_ context.Context, _ *mcp.CallToolRequest, _ NoInput) (*mcp.CallToolResult, CategoriesOutput, error) {
@@ -195,20 +203,40 @@ func (t *toolset) techStats(ctx context.Context, _ *mcp.CallToolRequest, in Tech
 		return nil, TechStatsOutput{}, err
 	}
 
+	days := in.Days
+	if days == 0 {
+		days = defaultTechStatsDays
+	}
+	if days < 1 || days > maxTechStatsDays {
+		return nil, TechStatsOutput{}, fmt.Errorf("days must be between 1 and %d, got %d", maxTechStatsDays, in.Days)
+	}
+
 	ctx, cancel := context.WithTimeout(ctx, config.RequestTimeout)
 	defer cancel()
 
-	rows, err := t.db.StatsPossibilityByCategory(ctx, name)
+	currentStart := time.Now().AddDate(0, 0, -days)
+	rows, err := t.db.TechTrendByCategory(ctx, database.TechTrendByCategoryParams{
+		Category:      name,
+		CurrentStart:  pgtype.Timestamptz{Time: currentStart, Valid: true},
+		PreviousStart: pgtype.Timestamptz{Time: currentStart.AddDate(0, 0, -days), Valid: true},
+	})
 	if err != nil {
 		return nil, TechStatsOutput{}, fmt.Errorf("counting technologies for %q: %w", name, err)
 	}
 
-	technologies := make([]TechStat, 0, len(rows))
+	out := TechStatsOutput{Category: name, Days: days, Technologies: make([]TechStat, 0, len(rows))}
 	for _, row := range rows {
-		technologies = append(technologies, TechStat{Technology: row.Technology, Count: row.Count})
+		out.OffersCount, out.PreviousCount = row.CurrentTotal, row.PreviousTotal
+		out.Technologies = append(out.Technologies, TechStat{
+			Technology:    row.Technology,
+			Count:         row.CurrentCount,
+			Share:         row.CurrentShare,
+			PreviousCount: row.PreviousCount,
+			PreviousShare: row.PreviousShare,
+		})
 	}
 
-	return nil, TechStatsOutput{Category: name, Technologies: technologies}, nil
+	return nil, out, nil
 }
 
 // resolveCategory maps whatever the model passed onto the value actually stored

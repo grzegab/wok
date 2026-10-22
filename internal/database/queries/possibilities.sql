@@ -16,15 +16,41 @@ $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
 SET posted_at = COALESCE(EXCLUDED.posted_at, possibilities.posted_at)
 RETURNING *;
 
--- name: StatsPossibilityByCategory :many
+-- name: TechTrendByCategory :many
+WITH offers AS (
+    SELECT id, tech, created_at >= sqlc.arg(current_start)::timestamptz AS is_current
+    FROM possibilities
+    WHERE category = sqlc.arg(category)
+      AND duplicate_of IS NULL
+      AND created_at >= sqlc.arg(previous_start)::timestamptz
+),
+totals AS (
+    SELECT
+        COUNT(*) FILTER (WHERE is_current) AS current_total,
+        COUNT(*) FILTER (WHERE NOT is_current) AS previous_total
+    FROM offers
+),
+counts AS (
+    SELECT
+        lower(trim(t)) AS technology,
+        COUNT(DISTINCT id) FILTER (WHERE is_current) AS current_count,
+        COUNT(DISTINCT id) FILTER (WHERE NOT is_current) AS previous_count
+    FROM offers,
+         LATERAL unnest(string_to_array(tech, ',')) AS t
+    WHERE trim(t) <> ''
+    GROUP BY 1
+)
 SELECT
-    trim(t) AS technology,
-    COUNT(*)
-FROM possibilities,
-     LATERAL unnest(string_to_array(tech, ',')) AS t
-WHERE category = $1
-GROUP BY technology
-ORDER BY COUNT(*) DESC;
+    c.technology::text AS technology,
+    c.current_count,
+    c.previous_count,
+    t.current_total,
+    t.previous_total,
+    COALESCE(round(100.0 * c.current_count / NULLIF(t.current_total, 0), 1), 0)::float8 AS current_share,
+    COALESCE(round(100.0 * c.previous_count / NULLIF(t.previous_total, 0), 1), 0)::float8 AS previous_share
+FROM counts c
+CROSS JOIN totals t
+ORDER BY c.current_count DESC, c.previous_count DESC, c.technology;
 
 -- name: ListPossibilitiesByCategoryPaged :many
 SELECT id, url, category, company_name, job_title, location, is_remote, tech, source, posted_at, created_at

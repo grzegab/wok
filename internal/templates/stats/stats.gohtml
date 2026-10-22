@@ -5,24 +5,51 @@
 
 {{ template "categorynav" . }}
 
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="text-muted">
+        Last {{ .Days }} days: <strong>{{ .CurrentTotal }}</strong> offers,
+        previous {{ .Days }} days: <strong>{{ .PreviousTotal }}</strong> offers (duplicates excluded)
+    </div>
+    <div class="btn-group">
+        {{ range .Periods }}
+        <a class="btn btn-sm {{ if eq . $.Days }}btn-secondary{{ else }}btn-outline-secondary{{ end }}"
+           href="/st4ts/{{ $.Category.Slug }}?days={{ . }}">{{ . }} days</a>
+        {{ end }}
+    </div>
+</div>
+
 <div class="card shadow-sm">
     <div class="table-responsive">
         <table class="table table-striped table-hover align-middle mb-0">
             <thead class="table-light">
             <tr>
                 <th>Technology</th>
-                <th class="text-end">Occurrences</th>
+                <th class="text-end">Offers</th>
+                <th class="text-end">Share</th>
+                <th class="text-end">Previous offers</th>
+                <th class="text-end">Previous share</th>
+                <th class="text-end">Change (pp)</th>
             </tr>
             </thead>
             <tbody>
             {{ range .Technologies }}
             <tr>
                 <td class="fw-medium">{{ .Technology }}</td>
-                <td class="text-end">{{ .Count }}</td>
+                <td class="text-end">{{ .CurrentCount }}</td>
+                <td class="text-end">{{ printf "%.1f" .CurrentShare }}%</td>
+                {{ if $.PreviousTotal }}
+                <td class="text-end">{{ .PreviousCount }}</td>
+                <td class="text-end">{{ printf "%.1f" .PreviousShare }}%</td>
+                <td class="text-end {{ if gt .Change 0.0 }}text-success{{ else if lt .Change 0.0 }}text-danger{{ end }}">{{ printf "%+.1f" .Change }}</td>
+                {{ else }}
+                <td class="text-end text-muted">-</td>
+                <td class="text-end text-muted">-</td>
+                <td class="text-end text-muted">-</td>
+                {{ end }}
             </tr>
             {{ else }}
             <tr>
-                <td colspan="2" class="text-center text-muted py-5">No data yet.</td>
+                <td colspan="6" class="text-center text-muted py-5">No data yet.</td>
             </tr>
             {{ end }}
             </tbody>

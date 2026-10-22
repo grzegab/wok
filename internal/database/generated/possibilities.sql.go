@@ -371,32 +371,77 @@ func (q *Queries) MarkPossibilityDuplicate(ctx context.Context, arg MarkPossibil
 	return err
 }
 
-const statsPossibilityByCategory = `-- name: StatsPossibilityByCategory :many
+const techTrendByCategory = `-- name: TechTrendByCategory :many
+WITH offers AS (
+    SELECT id, tech, created_at >= $1::timestamptz AS is_current
+    FROM possibilities
+    WHERE category = $2
+      AND duplicate_of IS NULL
+      AND created_at >= $3::timestamptz
+),
+totals AS (
+    SELECT
+        COUNT(*) FILTER (WHERE is_current) AS current_total,
+        COUNT(*) FILTER (WHERE NOT is_current) AS previous_total
+    FROM offers
+),
+counts AS (
+    SELECT
+        lower(trim(t)) AS technology,
+        COUNT(DISTINCT id) FILTER (WHERE is_current) AS current_count,
+        COUNT(DISTINCT id) FILTER (WHERE NOT is_current) AS previous_count
+    FROM offers,
+         LATERAL unnest(string_to_array(tech, ',')) AS t
+    WHERE trim(t) <> ''
+    GROUP BY 1
+)
 SELECT
-    trim(t) AS technology,
-    COUNT(*)
-FROM possibilities,
-     LATERAL unnest(string_to_array(tech, ',')) AS t
-WHERE category = $1
-GROUP BY technology
-ORDER BY COUNT(*) DESC
+    c.technology::text AS technology,
+    c.current_count,
+    c.previous_count,
+    t.current_total,
+    t.previous_total,
+    COALESCE(round(100.0 * c.current_count / NULLIF(t.current_total, 0), 1), 0)::float8 AS current_share,
+    COALESCE(round(100.0 * c.previous_count / NULLIF(t.previous_total, 0), 1), 0)::float8 AS previous_share
+FROM counts c
+CROSS JOIN totals t
+ORDER BY c.current_count DESC, c.previous_count DESC, c.technology
 `
 
-type StatsPossibilityByCategoryRow struct {
-	Technology string `json:"technology"`
-	Count      int64  `json:"count"`
+type TechTrendByCategoryParams struct {
+	CurrentStart  pgtype.Timestamptz `json:"current_start"`
+	Category      string             `json:"category"`
+	PreviousStart pgtype.Timestamptz `json:"previous_start"`
 }
 
-func (q *Queries) StatsPossibilityByCategory(ctx context.Context, category string) ([]StatsPossibilityByCategoryRow, error) {
-	rows, err := q.db.Query(ctx, statsPossibilityByCategory, category)
+type TechTrendByCategoryRow struct {
+	Technology    string  `json:"technology"`
+	CurrentCount  int64   `json:"current_count"`
+	PreviousCount int64   `json:"previous_count"`
+	CurrentTotal  int64   `json:"current_total"`
+	PreviousTotal int64   `json:"previous_total"`
+	CurrentShare  float64 `json:"current_share"`
+	PreviousShare float64 `json:"previous_share"`
+}
+
+func (q *Queries) TechTrendByCategory(ctx context.Context, arg TechTrendByCategoryParams) ([]TechTrendByCategoryRow, error) {
+	rows, err := q.db.Query(ctx, techTrendByCategory, arg.CurrentStart, arg.Category, arg.PreviousStart)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []StatsPossibilityByCategoryRow
+	var items []TechTrendByCategoryRow
 	for rows.Next() {
-		var i StatsPossibilityByCategoryRow
-		if err := rows.Scan(&i.Technology, &i.Count); err != nil {
+		var i TechTrendByCategoryRow
+		if err := rows.Scan(
+			&i.Technology,
+			&i.CurrentCount,
+			&i.PreviousCount,
+			&i.CurrentTotal,
+			&i.PreviousTotal,
+			&i.CurrentShare,
+			&i.PreviousShare,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
