@@ -48,6 +48,37 @@ initialises an empty data volume. Anything that has to reach an already-populate
 database (a new index, a new column) belongs in the idempotent SQL block inside
 `scripts/deploy.sh`, which runs on every deploy as the `wok` role.
 
+## Moving to a new VPS
+
+Everything stateful travels in one archive made by `scripts/migrate-export.sh`: the
+Postgres dump (applications and scraped offers, so the crawler keeps its history and
+dedupes against it), the `web_certs` volume and `.env`. Redis holds only sessions and IP
+bans and is not moved - you log in again on the new server.
+
+1. Prepare the new server: Docker Engine with the compose plugin, `git`, an ssh key that
+   can pull the repo, then `git clone git@github.com:grzegab/wok.git ~/wok`. Keep the
+   directory name `wok` (volume names derive from it) or export `COMPOSE_PROJECT_NAME=wok`.
+2. Rehearse while the old server keeps running:
+   ```bash
+   # old server
+   ./scripts/migrate-export.sh
+   scp -P <port> wok-migration-*.tar.gz <user>@<new-host>:~/
+   # new server
+   ./scripts/migrate-import.sh ~/wok-migration-<timestamp>.tar.gz
+   ```
+   The import restores the dump, compares row counts with the export, then runs
+   `scripts/deploy.sh`. Check the panel and `/st4ts/go` on the new server.
+3. Cut over: run `./scripts/migrate-export.sh --final` on the old server (it stops the
+   crawler and web before dumping, so nothing scraped later is lost), copy the archive and
+   run the import again on the new server. The images are already built by the rehearsal,
+   so the crawler is down only for the dump, copy and restore.
+4. Point everything at the new host: the MCP client's ssh command, the SSH node of the n8n
+   `ofertyPracyDaily` workflow, DNS if `WEB_DOMAIN` is set. Leave the old stack stopped
+   (`make up` brings it back if something is wrong) until the old server expires.
+
+The archive contains `.env` with the login hash and database password: it is created
+`chmod 600`, and should be deleted from both servers after the move.
+
 ## Generating a login password hash
 
 `hashgen` isn't part of the always-on stack (it's an interactive one-off), so it's run directly:
