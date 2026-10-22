@@ -55,8 +55,8 @@ Postgres dump (applications and scraped offers, so the crawler keeps its history
 dedupes against it), the `web_certs` volume and `.env`. Redis holds only sessions and IP
 bans and is not moved - you log in again on the new server.
 
-1. Prepare the new server: Docker Engine with the compose plugin, `git`, an ssh key that
-   can pull the repo, then `git clone git@github.com:grzegab/wok.git ~/wok`. Keep the
+1. Prepare the new server: Docker Engine with the compose plugin, `git` and `make`, then
+   `git clone https://github.com/grzegab/wok.git ~/wok`. Keep the
    directory name `wok` (volume names derive from it) or export `COMPOSE_PROJECT_NAME=wok`.
 2. Rehearse while the old server keeps running:
    ```bash
@@ -66,6 +66,7 @@ bans and is not moved - you log in again on the new server.
    # new server
    ./scripts/migrate-import.sh ~/wok-migration-<timestamp>.tar.gz
    ```
+   If the deploying user is in the `docker` group, prefix it with `DOCKER=docker`.
    The import restores the dump, compares row counts with the export, then runs
    `scripts/deploy.sh`. Check the panel and `/st4ts/go` on the new server.
 3. Cut over: run `./scripts/migrate-export.sh --final` on the old server (it stops the
