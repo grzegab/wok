@@ -35,7 +35,9 @@ install -m 600 "$WORK/.env" .env
 
 step "Starting postgres"
 $DOCKER compose up -d postgres
-until $DOCKER compose exec -T postgres sh -c 'pg_isready -U "$POSTGRES_USER"' >/dev/null 2>&1; do
+# On a fresh volume the image first runs a temporary server for schema.sql that
+# listens on the unix socket only, so wait for TCP to reach the real one.
+until $DOCKER compose exec -T postgres sh -c 'pg_isready -h 127.0.0.1 -U "$POSTGRES_USER"' >/dev/null 2>&1; do
     sleep 1
 done
 
