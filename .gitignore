@@ -116,3 +116,7 @@ go.work.sum
 
 # macOS
 .DS_Store
+
+# Migration archives (database dump, .env, certificates)
+wok-migration-*.tar.gz
+.env.before-import.*
